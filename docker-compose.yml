@@ -22,7 +22,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://modify:modify@db:5432/modify
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
     depends_on:
       db:
         condition: service_healthy
