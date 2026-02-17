@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -6,7 +6,17 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+RUN npx ng build --configuration=production
 
-EXPOSE 4200
+FROM nginx:alpine
 
-CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--poll", "2000"]
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
+
+EXPOSE 80
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

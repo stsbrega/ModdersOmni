@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     app_name: str = "Modify"
     debug: bool = False
 
+    # CORS
+    cors_origins: str = "http://localhost:4200"
+
     # Database
     database_url: str = "postgresql+asyncpg://modify:modify@localhost:5432/modify"
 
