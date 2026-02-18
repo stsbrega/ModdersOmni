@@ -1,7 +1,6 @@
 """Authentication API routes."""
 
 import logging
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -500,41 +499,13 @@ async def oauth_authorize(provider: str):
 
 
 @router.get("/oauth/{provider}/callback")
-async def oauth_callback_get(
+async def oauth_callback(
     provider: str,
     code: str,
     state: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Handle OAuth callback via GET (Google, Discord)."""
-    return await _handle_oauth_callback(provider, code, state, db)
-
-
-@router.post("/oauth/{provider}/callback")
-async def oauth_callback_post(
-    provider: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Handle OAuth callback via POST (Apple uses response_mode=form_post)."""
-    form = await request.form()
-    code = form.get("code", "")
-    state = form.get("state")
-    if not code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing authorization code",
-        )
-    return await _handle_oauth_callback(provider, str(code), str(state) if state else None, db)
-
-
-async def _handle_oauth_callback(
-    provider: str,
-    code: str,
-    state: str | None,
-    db: AsyncSession,
-):
-    """Shared OAuth callback logic for both GET and POST handlers."""
+    """Handle OAuth callback: exchange code, create/link account, redirect to frontend."""
     settings = get_settings()
     oauth = get_oauth_provider(provider)
     if oauth is None or not oauth.is_configured():
