@@ -9,7 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
   template: `
     <header class="header">
       <div class="header-content">
-        <a routerLink="/dashboard" class="logo">
+        <a routerLink="/" class="logo">
           <span class="logo-mark">M</span>
           <span class="logo-text">Modify</span>
         </a>
@@ -91,12 +91,14 @@ import { AuthService } from '../../../core/services/auth.service';
       align-items: center;
       gap: 0.625rem;
       color: var(--color-text);
+      transition: gap 0.2s var(--ease-out);
     }
+    .logo:hover { gap: 0.75rem; }
     .logo-mark {
       width: 32px;
       height: 32px;
       background: var(--color-gold);
-      color: #0D0D0F;
+      color: #0A0A0C;
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -104,6 +106,11 @@ import { AuthService } from '../../../core/services/auth.service';
       font-weight: 700;
       font-size: 1rem;
       font-family: var(--font-display);
+      transition: box-shadow 0.25s, transform 0.2s;
+    }
+    .logo:hover .logo-mark {
+      box-shadow: 0 0 16px rgba(196, 165, 90, 0.3);
+      transform: scale(1.05);
     }
     .logo-text {
       font-size: 1.125rem;
@@ -124,11 +131,11 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .nav-link:hover {
       color: var(--color-text);
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
     }
     .nav-link.active {
-      color: var(--color-text);
-      background: rgba(255, 255, 255, 0.06);
+      color: var(--color-gold);
+      background: rgba(196, 165, 90, 0.08);
     }
     .header-actions {
       display: flex;
@@ -147,7 +154,7 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .sign-in-btn:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: 0 4px 20px rgba(196, 165, 90, 0.25);
     }
 
     /* User Menu */
@@ -168,8 +175,9 @@ import { AuthService } from '../../../core/services/auth.service';
       cursor: pointer;
     }
     .avatar-btn:hover {
-      border-color: var(--color-border-hover);
-      color: var(--color-text);
+      border-color: rgba(196, 165, 90, 0.3);
+      color: var(--color-gold);
+      box-shadow: 0 0 12px rgba(196, 165, 90, 0.12);
     }
     .avatar-initials {
       font-size: 0.75rem;
@@ -191,10 +199,16 @@ import { AuthService } from '../../../core/services/auth.service';
       width: 220px;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       padding: 0.5rem;
       z-index: 100;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      box-shadow: var(--shadow-elevated);
+      animation: dropdown-enter 0.2s var(--ease-out);
+      transform-origin: top right;
+    }
+    @keyframes dropdown-enter {
+      from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
     }
     .dropdown-header {
       padding: 0.5rem 0.625rem;

@@ -257,8 +257,8 @@ interface DashboardMod {
       background: rgba(255, 255, 255, 0.04);
     }
     .sidebar-item.active {
-      color: var(--color-text);
-      background: rgba(255, 255, 255, 0.06);
+      color: var(--color-gold);
+      background: rgba(196, 165, 90, 0.08);
     }
 
     /* ===== Main ===== */
@@ -299,8 +299,10 @@ interface DashboardMod {
     }
     .btn-primary:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: var(--shadow-gold);
+      transform: translateY(-1px);
     }
+    .btn-primary:active { transform: translateY(0); }
 
     /* Stats */
     .stats-row {
@@ -312,13 +314,27 @@ interface DashboardMod {
     .stat-card {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       padding: 1.25rem;
-      transition: border-color 0.2s;
+      transition: border-color 0.25s, transform 0.25s var(--ease-out), box-shadow 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.02) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
     }
     .stat-card:hover {
       border-color: var(--color-border-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card);
     }
+    .stat-card:hover::after { opacity: 1; }
     .stat-icon {
       width: 36px;
       height: 36px;
@@ -334,9 +350,10 @@ interface DashboardMod {
     .stat-icon--muted { background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted); }
     .stat-value {
       font-size: 1.375rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
       margin-bottom: 0.125rem;
+      font-variant-numeric: tabular-nums;
     }
     .stat-label {
       font-size: 0.75rem;
@@ -354,8 +371,9 @@ interface DashboardMod {
     .panel {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       padding: 1.5rem;
+      box-shadow: var(--shadow-card);
     }
     .panel-header {
       display: flex;
@@ -438,7 +456,10 @@ interface DashboardMod {
       border: none;
       padding: 0;
     }
-    .toggle.on { background: var(--color-gold); }
+    .toggle.on {
+      background: var(--color-gold);
+      box-shadow: 0 0 8px rgba(196, 165, 90, 0.25);
+    }
     .toggle-knob {
       position: absolute;
       top: 2px;
@@ -447,7 +468,8 @@ interface DashboardMod {
       height: 16px;
       border-radius: 50%;
       background: white;
-      transition: transform 0.2s;
+      transition: transform 0.25s var(--ease-spring);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
     .toggle.on .toggle-knob {
       transform: translateX(16px);

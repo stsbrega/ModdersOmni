@@ -1,6 +1,8 @@
 import { Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { Playstyle } from '../../../../shared/models/game.model';
 import { HardwareSpecs } from '../../../../shared/models/specs.model';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
@@ -260,6 +262,8 @@ export class PlaystyleSelectComponent implements OnInit {
 
   constructor(
     private api: ApiService,
+    private authService: AuthService,
+    private notifications: NotificationService,
     private router: Router,
   ) {}
 
@@ -277,6 +281,14 @@ export class PlaystyleSelectComponent implements OnInit {
   generate(): void {
     const playstyleId = this.selectedId();
     if (!playstyleId) return;
+
+    if (!this.authService.isLoggedIn()) {
+      this.notifications.info('Create an account to generate your modlist');
+      this.router.navigate(['/auth/register'], {
+        queryParams: { returnUrl: '/setup' },
+      });
+      return;
+    }
 
     this.loading.set(true);
     this.api
