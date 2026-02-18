@@ -3,29 +3,59 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DownloadStatus } from '../../shared/models/mod.model';
+import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
 @Component({
   selector: 'app-downloads',
   standalone: true,
+  animations: [
+    trigger('fadeUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(12px)' }),
+        animate('350ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+    trigger('staggerItems', [
+      transition(':enter', [
+        query('.download-item', [
+          style({ opacity: 0, transform: 'translateY(8px)' }),
+          stagger(40, [
+            animate('300ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+          ]),
+        ], { optional: true }),
+      ]),
+    ]),
+  ],
   template: `
     <div class="downloads-page">
-      <div class="page-header">
-        <h1>DEPLOYMENT STATUS</h1>
+      <div class="page-header" @fadeUp>
+        <div>
+          <span class="page-label">Deployment</span>
+          <h1>Download Status</h1>
+        </div>
         @if (isLive()) {
-          <span class="live-badge">LIVE</span>
+          <span class="live-badge">
+            <span class="live-dot"></span>
+            Live
+          </span>
         }
       </div>
 
       @if (!modlistId) {
-        <div class="empty-state">
+        <div class="empty-state" @fadeUp>
+          <div class="empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+          </div>
           <p>No active deployments.</p>
-          <p class="text-muted">Start a deployment from your loadout page.</p>
+          <p class="empty-hint">Start a deployment from your loadout page.</p>
         </div>
       } @else {
         <!-- Stats Bar -->
-        <div class="stats-bar">
+        <div class="stats-bar" @fadeUp>
           <div class="stat">
-            <span class="stat-value">{{ completedCount() }}</span>
+            <span class="stat-value complete">{{ completedCount() }}</span>
             <span class="stat-label">Complete</span>
           </div>
           <div class="stat">
@@ -43,34 +73,34 @@ import { DownloadStatus } from '../../shared/models/mod.model';
         </div>
 
         <!-- Overall Progress -->
-        <div class="overall-progress">
+        <div class="overall-progress" @fadeUp>
           <div class="progress-header">
             <span>Overall Progress</span>
-            <span>{{ overallPercent() }}%</span>
+            <span class="progress-pct">{{ overallPercent() }}%</span>
           </div>
-          <div class="progress-bar-track">
+          <div class="progress-track">
             <div
-              class="progress-bar-fill"
+              class="progress-fill"
               [style.width.%]="overallPercent()"
             ></div>
           </div>
         </div>
 
         <!-- Download Items -->
-        <div class="download-list">
+        <div class="download-list" @staggerItems>
           @for (item of downloads(); track item.mod_id) {
-            <div class="download-item" [class]="'status-bg-' + item.status">
+            <div class="download-item" [class]="'item-' + item.status">
               <div class="item-info">
                 <span class="item-name">{{ item.name }}</span>
-                <span class="item-status" [class]="'status-text-' + item.status">
+                <span class="item-status" [class]="'badge-' + item.status">
                   {{ item.status }}
                 </span>
               </div>
               @if (item.status === 'downloading') {
                 <div class="item-progress">
-                  <div class="progress-bar-track small">
+                  <div class="progress-track small">
                     <div
-                      class="progress-bar-fill"
+                      class="progress-fill"
                       [style.width.%]="item.progress"
                     ></div>
                   </div>
@@ -86,15 +116,24 @@ import { DownloadStatus } from '../../shared/models/mod.model';
 
         @if (downloads().length === 0) {
           <div class="empty-state">
-            <div class="spinner"></div>
+            <span class="load-spinner"></span>
             <p>Waiting for deployment status...</p>
           </div>
         }
 
         @if (allDownloadsComplete()) {
-          <div class="completion-footer">
-            <button class="btn-return" (click)="returnToLoadout()">
+          <div class="completion-footer" @fadeUp>
+            <div class="completion-msg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Deployment complete
+            </div>
+            <button class="btn-primary" (click)="returnToLoadout()">
               Return to Loadout
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
             </button>
           </div>
         }
@@ -102,135 +141,185 @@ import { DownloadStatus } from '../../shared/models/mod.model';
     </div>
   `,
   styles: [`
-    .downloads-page { max-width: 800px; margin: 0 auto; padding: 2rem; }
+    .downloads-page {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem;
+    }
 
+    /* Header */
     .page-header {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      align-items: flex-start;
+      justify-content: space-between;
       margin-bottom: 2rem;
     }
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin: 0;
-      font-family: var(--font-heading);
+    .page-label {
+      display: inline-block;
+      font-size: 0.6875rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.1em;
+      color: var(--color-gold);
+      margin-bottom: 0.375rem;
     }
-
+    h1 {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
     .live-badge {
-      background: var(--color-accent-red);
-      color: white;
-      font-size: 0.625rem;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      letter-spacing: 0.05em;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--color-error);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 100px;
+      letter-spacing: 0.03em;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-error);
       animation: pulse 2s infinite;
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
+      50% { opacity: 0.4; }
     }
 
+    /* Stats */
     .stats-bar {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
+      gap: 0.75rem;
       margin-bottom: 1.5rem;
     }
     .stat {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 1rem;
       text-align: center;
-      transition: all 0.2s ease;
+      transition: border-color 0.15s;
     }
     .stat:hover {
-      border-color: var(--color-primary);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border-color: var(--color-border-hover);
     }
     .stat-value {
       display: block;
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--color-accent-green);
-      font-family: var(--font-heading);
     }
-    .stat-value.downloading { color: #60a5fa; }
-    .stat-value.failed { color: #f87171; }
-    .stat-value.pending { color: #fbbf24; }
+    .stat-value.complete { color: var(--color-success); }
+    .stat-value.downloading { color: var(--color-blue); }
+    .stat-value.failed { color: var(--color-error); }
+    .stat-value.pending { color: var(--color-warning); }
     .stat-label {
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--color-text-dim);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
+      margin-top: 0.25rem;
+      display: block;
     }
 
+    /* Progress */
     .overall-progress {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 8px;
-      padding: 1rem;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
       margin-bottom: 1.5rem;
     }
     .progress-header {
       display: flex;
       justify-content: space-between;
-      font-size: 0.875rem;
-      margin-bottom: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      margin-bottom: 0.625rem;
+      color: var(--color-text-muted);
     }
-    .progress-bar-track {
+    .progress-pct {
+      color: var(--color-gold);
+      font-weight: 600;
+    }
+    .progress-track {
       width: 100%;
-      height: 8px;
-      background: var(--color-bg-elevated);
-      border-radius: 4px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
       overflow: hidden;
     }
-    .progress-bar-track.small { height: 4px; }
-    .progress-bar-fill {
+    .progress-track.small { height: 4px; }
+    .progress-fill {
       height: 100%;
-      background: var(--color-primary);
-      border-radius: 4px;
-      transition: width 0.3s ease;
+      background: linear-gradient(90deg, var(--color-gold), var(--color-blue));
+      border-radius: 3px;
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* Download list */
     .download-list {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
     }
-
     .download-item {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 8px;
-      padding: 0.875rem 1rem;
-      transition: all 0.2s ease;
+      border-radius: 10px;
+      padding: 0.875rem 1.125rem;
+      transition: border-color 0.15s;
     }
     .download-item:hover {
       border-color: var(--color-border-hover);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     .item-info {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .item-name { font-size: 0.875rem; font-weight: 500; }
+    .item-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
     .item-status {
-      font-size: 0.7rem;
+      font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
-      padding: 0.15rem 0.4rem;
-      border-radius: 3px;
+      letter-spacing: 0.04em;
+      padding: 0.175rem 0.5rem;
+      border-radius: 100px;
     }
-    .status-text-pending { background: #78350f; color: #fcd34d; }
-    .status-text-downloading { background: #1e3a5f; color: #60a5fa; }
-    .status-text-complete { background: #14532d; color: #86efac; }
-    .status-text-failed { background: #7f1d1d; color: #fca5a5; }
+    .badge-pending {
+      background: rgba(234, 179, 8, 0.12);
+      color: var(--color-warning);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+    }
+    .badge-downloading {
+      background: rgba(123, 164, 192, 0.12);
+      color: var(--color-blue);
+      border: 1px solid rgba(123, 164, 192, 0.2);
+    }
+    .badge-complete {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--color-success);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    .badge-failed {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--color-error);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
 
     .item-progress {
       display: flex;
@@ -238,57 +327,94 @@ import { DownloadStatus } from '../../shared/models/mod.model';
       gap: 0.75rem;
       margin-top: 0.5rem;
     }
-    .item-progress .progress-bar-track { flex: 1; }
-    .progress-label { font-size: 0.75rem; color: var(--color-text-muted); min-width: 3rem; text-align: right; }
-
+    .item-progress .progress-track { flex: 1; }
+    .progress-label {
+      font-size: 0.75rem;
+      color: var(--color-text-dim);
+      min-width: 2.5rem;
+      text-align: right;
+      font-weight: 500;
+    }
     .item-error {
       font-size: 0.75rem;
-      color: #f87171;
+      color: var(--color-error);
       margin: 0.375rem 0 0;
     }
 
+    /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 4rem 2rem;
+      padding: 5rem 2rem;
       color: var(--color-text-muted);
     }
-    .text-muted { color: var(--color-text-muted); font-size: 0.875rem; margin-top: 0.5rem; }
-
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid var(--color-bg-elevated);
-      border-top-color: var(--color-primary);
+    .empty-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      color: var(--color-text-dim);
+    }
+    .empty-state p {
+      margin-bottom: 0.5rem;
+      font-size: 0.9375rem;
+    }
+    .empty-hint {
+      font-size: 0.8125rem;
+      color: var(--color-text-dim);
+    }
+    .load-spinner {
+      display: block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-gold);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.6s linear infinite;
       margin: 0 auto 1rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Completion */
     .completion-footer {
       display: flex;
-      justify-content: center;
+      align-items: center;
+      justify-content: space-between;
       margin-top: 2rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--color-border);
+      padding: 1.25rem 1.5rem;
+      background: var(--color-bg-card);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 10px;
     }
-    .btn-return {
-      background: var(--color-primary);
-      color: white;
-      padding: 0.75rem 2rem;
+    .completion-msg {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--color-success);
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--color-gold);
+      color: #0D0D0F;
+      padding: 0.625rem 1.5rem;
       border-radius: 8px;
       font-weight: 600;
       border: none;
       cursor: pointer;
-      font-family: inherit;
       font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      transition: all 0.2s ease;
+      transition: background 0.2s, box-shadow 0.3s;
     }
-    .btn-return:hover {
-      background: var(--color-primary-hover);
-      box-shadow: 0 0 12px 2px var(--color-primary-glow);
+    .btn-primary:hover {
+      background: var(--color-gold-hover);
+      box-shadow: 0 0 20px var(--color-gold-glow);
     }
   `],
 })
