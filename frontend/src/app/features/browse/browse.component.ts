@@ -352,13 +352,14 @@ interface BrowseMod {
     .mod-card {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       overflow: hidden;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color 0.25s, transform 0.3s var(--ease-out), box-shadow 0.3s;
     }
     .mod-card:hover {
       border-color: var(--color-border-hover);
-      transform: translateY(-2px);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04);
     }
     .mod-thumb {
       height: 100px;
@@ -443,7 +444,8 @@ interface BrowseMod {
     .add-btn:hover {
       color: var(--color-gold);
       border-color: var(--color-gold);
-      background: rgba(192, 160, 96, 0.06);
+      background: rgba(196, 165, 90, 0.08);
+      box-shadow: 0 0 12px rgba(196, 165, 90, 0.1);
     }
 
     /* Skeleton */
@@ -455,16 +457,18 @@ interface BrowseMod {
     }
     .skeleton-thumb {
       height: 100px;
-      background: rgba(255, 255, 255, 0.03);
-      animation: shimmer 1.5s ease-in-out infinite;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+      background-size: 200% 100%;
+      animation: shimmer-sweep 1.8s ease-in-out infinite;
     }
     .skeleton-body { padding: 1rem; }
     .skeleton-line {
       height: 10px;
-      background: rgba(255, 255, 255, 0.06);
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
       border-radius: 5px;
       margin-bottom: 0.5rem;
-      animation: shimmer 1.5s ease-in-out infinite;
+      animation: shimmer-sweep 1.8s ease-in-out infinite;
     }
     .skeleton-line.w70 { width: 70%; }
     .skeleton-line.w40 { width: 40%; }
@@ -476,21 +480,23 @@ interface BrowseMod {
     .skeleton-badge {
       height: 20px;
       width: 60px;
-      background: rgba(255, 255, 255, 0.05);
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
       border-radius: 4px;
-      animation: shimmer 1.5s ease-in-out infinite;
+      animation: shimmer-sweep 1.8s ease-in-out infinite;
     }
     .skeleton-btn {
       height: 28px;
       width: 90px;
-      background: rgba(255, 255, 255, 0.05);
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
       border-radius: 6px;
-      animation: shimmer 1.5s ease-in-out infinite;
+      animation: shimmer-sweep 1.8s ease-in-out infinite;
       margin-left: auto;
     }
-    @keyframes shimmer {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    @keyframes shimmer-sweep {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
 
     /* Empty state */

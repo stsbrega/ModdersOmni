@@ -182,17 +182,23 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       padding: 0.3rem 0.75rem;
       border-radius: 100px;
       letter-spacing: 0.03em;
+      text-transform: uppercase;
+      animation: live-glow 3s ease-in-out infinite;
+    }
+    @keyframes live-glow {
+      0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+      50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.2); }
     }
     .live-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: var(--color-error);
-      animation: pulse 2s infinite;
+      animation: pulse 1.5s ease-in-out infinite;
     }
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
     }
 
     /* Stats */
@@ -205,18 +211,21 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     .stat {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       padding: 1rem;
       text-align: center;
-      transition: border-color 0.15s;
+      transition: border-color 0.2s, transform 0.2s var(--ease-out), box-shadow 0.2s;
     }
     .stat:hover {
       border-color: var(--color-border-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card);
     }
     .stat-value {
       display: block;
       font-size: 1.5rem;
       font-weight: 700;
+      font-variant-numeric: tabular-nums;
     }
     .stat-value.complete { color: var(--color-success); }
     .stat-value.downloading { color: var(--color-blue); }
@@ -265,6 +274,20 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       background: linear-gradient(90deg, var(--color-gold), var(--color-blue));
       border-radius: 3px;
       transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 8px rgba(196, 165, 90, 0.3);
+      position: relative;
+    }
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer-sweep 2.5s ease-in-out infinite;
+    }
+    @keyframes shimmer-sweep {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
 
     /* Download list */
@@ -388,7 +411,8 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       padding: 1.25rem 1.5rem;
       background: var(--color-bg-card);
       border: 1px solid rgba(34, 197, 94, 0.2);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.06);
     }
     .completion-msg {
       display: flex;
@@ -414,8 +438,10 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     }
     .btn-primary:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: var(--shadow-gold);
+      transform: translateY(-1px);
     }
+    .btn-primary:active { transform: translateY(0); }
   `],
 })
 export class DownloadsComponent implements OnInit, OnDestroy {

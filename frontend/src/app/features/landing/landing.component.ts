@@ -385,7 +385,7 @@ import { AuthService } from '../../core/services/auth.service';
     }
     .nav-cta:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: 0 4px 20px rgba(196, 165, 90, 0.25);
     }
 
     /* ===== Hero ===== */
@@ -409,23 +409,31 @@ import { AuthService } from '../../core/services/auth.service';
     }
     .hero-glow {
       position: absolute;
-      width: 600px;
-      height: 600px;
+      width: 650px;
+      height: 650px;
       border-radius: 50%;
-      filter: blur(120px);
+      filter: blur(130px);
       pointer-events: none;
+      animation: glow-drift 12s ease-in-out infinite;
     }
     .hero-glow--gold {
       top: 5%;
-      left: 15%;
-      background: var(--color-gold-glow);
-      opacity: 0.5;
+      left: 12%;
+      background: radial-gradient(circle, var(--color-gold-glow) 0%, transparent 70%);
+      opacity: 0.6;
     }
     .hero-glow--blue {
-      bottom: 10%;
-      right: 10%;
-      background: var(--color-blue-glow);
-      opacity: 0.4;
+      bottom: 8%;
+      right: 8%;
+      background: radial-gradient(circle, var(--color-blue-glow) 0%, transparent 70%);
+      opacity: 0.5;
+      animation-delay: -6s;
+      animation-direction: reverse;
+    }
+    @keyframes glow-drift {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(20px, -15px) scale(1.05); }
+      66% { transform: translate(-10px, 10px) scale(0.95); }
     }
     .hero-content {
       position: relative;
@@ -437,14 +445,16 @@ import { AuthService } from '../../core/services/auth.service';
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      background: rgba(192, 160, 96, 0.1);
-      border: 1px solid rgba(192, 160, 96, 0.2);
+      background: rgba(196, 165, 90, 0.08);
+      border: 1px solid rgba(196, 165, 90, 0.18);
       color: var(--color-gold);
       padding: 0.375rem 1rem;
       border-radius: 100px;
       font-size: 0.8125rem;
       font-weight: 500;
       margin-bottom: 2rem;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
     .badge-dot {
       width: 6px;
@@ -467,10 +477,16 @@ import { AuthService } from '../../core/services/auth.service';
       color: var(--color-text);
     }
     .hero-title-accent {
-      background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-hover) 50%, var(--color-blue) 100%);
+      background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-hover) 40%, var(--color-blue) 100%);
+      background-size: 200% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      animation: gradient-shift 6s ease-in-out infinite;
+    }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% center; }
+      50% { background-position: 100% center; }
     }
     .hero-subtitle {
       font-size: 1.125rem;
@@ -501,8 +517,12 @@ import { AuthService } from '../../core/services/auth.service';
     }
     .btn-primary:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 30px var(--color-gold-glow);
-      transform: translateY(-1px);
+      box-shadow: 0 4px 24px rgba(196, 165, 90, 0.3), 0 0 8px rgba(196, 165, 90, 0.15);
+      transform: translateY(-2px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 12px rgba(196, 165, 90, 0.2);
     }
     .btn-primary--lg {
       padding: 0.875rem 2.25rem;
@@ -567,9 +587,14 @@ import { AuthService } from '../../core/services/auth.service';
     .preview-window {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+      animation: subtle-float 8s ease-in-out infinite;
+    }
+    @keyframes subtle-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
     }
     .preview-titlebar {
       display: flex;
@@ -745,6 +770,12 @@ import { AuthService } from '../../core/services/auth.service';
       justify-content: center;
       margin-bottom: 1.25rem;
       color: var(--color-text);
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+    }
+    .step:hover .step-icon {
+      border-color: rgba(196, 165, 90, 0.25);
+      box-shadow: 0 0 20px rgba(196, 165, 90, 0.1);
+      background: rgba(196, 165, 90, 0.06);
     }
     .step-title {
       font-size: 1.125rem;
@@ -772,13 +803,28 @@ import { AuthService } from '../../core/services/auth.service';
     .feature-card {
       background: var(--color-bg-dark);
       border: 1px solid var(--color-border);
-      border-radius: 12px;
+      border-radius: var(--radius-lg);
       padding: 2rem;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color 0.25s, transform 0.3s var(--ease-out), box-shadow 0.3s;
+      position: relative;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(ellipse at 50% 0%, rgba(196, 165, 90, 0.04) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
     }
     .feature-card:hover {
-      border-color: var(--color-border-hover);
-      transform: translateY(-2px);
+      border-color: rgba(196, 165, 90, 0.15);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(196, 165, 90, 0.08);
+    }
+    .feature-card:hover::before {
+      opacity: 1;
     }
     .feature-icon {
       width: 44px;
@@ -832,6 +878,10 @@ import { AuthService } from '../../core/services/auth.service';
       font-weight: 600;
       color: var(--color-text);
       margin-bottom: 0.25rem;
+      background: linear-gradient(180deg, var(--color-text) 0%, var(--color-text-muted) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     .proof-label {
       font-size: 0.8125rem;
@@ -846,6 +896,19 @@ import { AuthService } from '../../core/services/auth.service';
     /* ===== CTA Section ===== */
     .cta-section {
       padding: 8rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(196, 165, 90, 0.06) 0%, transparent 70%);
+      pointer-events: none;
     }
     .cta-title {
       font-family: var(--font-display);

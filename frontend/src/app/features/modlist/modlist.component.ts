@@ -214,8 +214,10 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     }
     .btn-primary:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: var(--shadow-gold);
+      transform: translateY(-1px);
     }
+    .btn-primary:active { transform: translateY(0); }
 
     /* Mod list */
     .mod-list {
@@ -227,20 +229,26 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
       border-left: 3px solid var(--color-gold);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       padding: 1rem 1.25rem;
       display: flex;
       align-items: flex-start;
       gap: 1rem;
-      transition: border-color 0.15s, box-shadow 0.15s, opacity 0.2s;
+      transition: border-color 0.2s, box-shadow 0.25s, opacity 0.2s, transform 0.2s var(--ease-out);
     }
     .mod-card:hover {
-      border-color: var(--color-border-hover);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+      border-color: rgba(196, 165, 90, 0.2);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(196, 165, 90, 0.06);
+      transform: translateX(2px);
     }
     .mod-card.disabled {
-      opacity: 0.4;
+      opacity: 0.35;
       border-left-color: var(--color-text-dim);
+    }
+    .mod-card.disabled:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: var(--color-border);
     }
 
     .mod-order {

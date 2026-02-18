@@ -25,11 +25,13 @@ export const routes: Routes = [
   { path: 'auth/forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard] },
   { path: 'auth/reset-password', component: ResetPasswordComponent },
 
-  // Protected routes
+  // Public app routes
+  { path: 'browse', component: BrowseComponent },
+  { path: 'setup', component: SetupComponent },
+  { path: 'downloads', component: DownloadsComponent },
+
+  // Auth-required routes
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
-  { path: 'browse', component: BrowseComponent, canActivate: [authGuard] },
-  { path: 'setup', component: SetupComponent, canActivate: [authGuard] },
-  { path: 'downloads', component: DownloadsComponent, canActivate: [authGuard] },
   { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
 
   // Public routes

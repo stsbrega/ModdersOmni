@@ -90,14 +90,46 @@ import { NotificationService } from '../../../core/services/notification.service
       justify-content: center;
       padding: 2rem;
       background: var(--color-bg-dark);
+      position: relative;
+      overflow: hidden;
+    }
+    .auth-page::before {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 30%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(196, 165, 90, 0.06) 0%, transparent 70%);
+      filter: blur(60px);
+      pointer-events: none;
+    }
+    .auth-page::after {
+      content: '';
+      position: absolute;
+      bottom: 15%;
+      right: 25%;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(107, 159, 191, 0.04) 0%, transparent 70%);
+      filter: blur(60px);
+      pointer-events: none;
     }
     .auth-card {
       width: 100%;
       max-width: 400px;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
-      border-radius: 16px;
+      border-radius: var(--radius-xl);
       padding: 2.5rem;
+      position: relative;
+      z-index: 1;
+      box-shadow: var(--shadow-elevated);
+      animation: card-enter 0.5s var(--ease-out);
+    }
+    @keyframes card-enter {
+      from { opacity: 0; transform: translateY(16px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .auth-header {
       text-align: center;
@@ -107,7 +139,7 @@ import { NotificationService } from '../../../core/services/notification.service
       width: 48px;
       height: 48px;
       background: var(--color-gold);
-      color: #0D0D0F;
+      color: #0A0A0C;
       border-radius: 12px;
       display: inline-flex;
       align-items: center;
@@ -115,6 +147,8 @@ import { NotificationService } from '../../../core/services/notification.service
       font-weight: 700;
       font-size: 1.25rem;
       margin-bottom: 1rem;
+      font-family: var(--font-display);
+      box-shadow: 0 0 20px rgba(196, 165, 90, 0.2);
     }
     .auth-header h1 {
       font-size: 1.375rem;
@@ -152,7 +186,10 @@ import { NotificationService } from '../../../core/services/notification.service
       outline: none;
       transition: border-color 0.15s;
     }
-    .input:focus { border-color: var(--color-gold); }
+    .input:focus {
+      border-color: var(--color-gold);
+      box-shadow: 0 0 0 3px rgba(196, 165, 90, 0.1);
+    }
     .input::placeholder { color: var(--color-text-dim); }
 
     .form-actions {
@@ -183,8 +220,10 @@ import { NotificationService } from '../../../core/services/notification.service
     }
     .btn-primary:hover {
       background: var(--color-gold-hover);
-      box-shadow: 0 0 20px var(--color-gold-glow);
+      box-shadow: var(--shadow-gold);
+      transform: translateY(-1px);
     }
+    .btn-primary:active { transform: translateY(0); }
     .btn-primary:disabled {
       opacity: 0.5;
       cursor: not-allowed;
