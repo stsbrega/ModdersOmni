@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Output, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../../core/services/api.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { HardwareSpecs, SpecsParseResponse, TierScores } from '../../../../shared/models/specs.model';
 import { trigger, transition, style, animate } from '@angular/animations';
 
@@ -22,6 +23,18 @@ import { trigger, transition, style, animate } from '@angular/animations';
       <p class="step-desc">
         Paste your system info from NVIDIA App, HWiNFO, or Task Manager.
       </p>
+
+      @if (usingSavedHardware()) {
+        <div class="saved-banner">
+          <div class="saved-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Using your saved hardware profile</span>
+          </div>
+          <button class="btn-different" (click)="clearSavedHardware()">Use different specs</button>
+        </div>
+      }
 
       <div class="textarea-wrap">
         <textarea
@@ -145,6 +158,41 @@ RAM: 32 GB DDR5"
       text-align: center;
       margin-bottom: 1.5rem;
     }
+    /* Saved Hardware Banner */
+    .saved-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .saved-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #22c55e;
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+    .btn-different {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--color-text-muted);
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-different:hover {
+      border-color: var(--color-border-hover);
+      color: var(--color-text);
+    }
+
     .textarea-wrap {
       margin-bottom: 1.5rem;
     }
@@ -344,15 +392,43 @@ RAM: 32 GB DDR5"
     @keyframes spin { to { transform: rotate(360deg); } }
   `],
 })
-export class SpecInputComponent {
+export class SpecInputComponent implements OnInit {
   @Output() specsParsed = new EventEmitter<HardwareSpecs>();
   @Output() back = new EventEmitter<void>();
 
   rawText = '';
   loading = signal(false);
   fullResponse = signal<SpecsParseResponse | null>(null);
+  usingSavedHardware = signal(false);
 
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    private authService: AuthService,
+  ) {}
+
+  ngOnInit(): void {
+    const hw = this.authService.savedHardware;
+    if (hw && (hw.gpu_model || hw.cpu_model)) {
+      // Pre-populate with saved hardware
+      const specs: HardwareSpecs = {
+        gpu: hw.gpu_model || '',
+        cpu: hw.cpu_model || '',
+        ram_gb: hw.ram_gb || 0,
+        vram_mb: hw.vram_mb || 0,
+      };
+      this.fullResponse.set({
+        specs,
+        tier: hw.hardware_tier || 'unknown',
+      } as SpecsParseResponse);
+      this.usingSavedHardware.set(true);
+    }
+  }
+
+  clearSavedHardware(): void {
+    this.usingSavedHardware.set(false);
+    this.fullResponse.set(null);
+    this.rawText = '';
+  }
 
   formatVram(vramMb: number | undefined): string {
     if (!vramMb) return 'Not detected';

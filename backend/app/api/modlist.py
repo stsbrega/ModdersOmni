@@ -11,8 +11,10 @@ from app.models.mod import Mod
 from app.models.modlist import Modlist, ModlistEntry
 from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
+from app.models.user import User
 from app.schemas.modlist import ModEntry, ModlistGenerateRequest, ModlistResponse
 from app.services.modlist_generator import generate_modlist as run_generation, _is_version_compatible
+from app.api.deps import get_current_user, get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,7 @@ router = APIRouter()
 async def generate_modlist(
     request: ModlistGenerateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     # Validate game and playstyle exist
     game = await db.get(Game, request.game_id)
@@ -52,6 +55,7 @@ async def generate_modlist(
         ram_gb=request.ram_gb,
         vram_mb=request.vram_mb,
         llm_provider="fallback" if not generated_mods else None,
+        user_id=current_user.id if current_user else None,
     )
     db.add(modlist)
     await db.flush()
@@ -171,3 +175,51 @@ async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
         entries=entries,
         llm_provider=modlist.llm_provider,
     )
+
+
+@router.get("/mine", response_model=list[ModlistResponse])
+async def get_my_modlists(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all modlists for the current user."""
+    result = await db.execute(
+        select(Modlist)
+        .where(Modlist.user_id == current_user.id)
+        .order_by(Modlist.created_at.desc())
+    )
+    modlists = result.scalars().all()
+
+    responses = []
+    for ml in modlists:
+        entry_result = await db.execute(
+            select(ModlistEntry, Mod)
+            .outerjoin(Mod, ModlistEntry.mod_id == Mod.id)
+            .where(ModlistEntry.modlist_id == ml.id)
+            .order_by(ModlistEntry.load_order)
+        )
+        entries = []
+        for entry, mod in entry_result.all():
+            entries.append(
+                ModEntry(
+                    mod_id=entry.mod_id,
+                    nexus_mod_id=mod.nexus_mod_id if mod else None,
+                    name=mod.name if mod else "Unknown",
+                    author=mod.author if mod else None,
+                    summary=mod.summary if mod else None,
+                    load_order=entry.load_order,
+                    enabled=entry.enabled,
+                    download_status=entry.download_status,
+                )
+            )
+        responses.append(
+            ModlistResponse(
+                id=ml.id,
+                game_id=ml.game_id,
+                playstyle_id=ml.playstyle_id,
+                entries=entries,
+                llm_provider=ml.llm_provider,
+            )
+        )
+
+    return responses

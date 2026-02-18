@@ -39,6 +39,42 @@ class Settings(BaseSettings):
     custom_source_api_url: str = ""
     custom_source_api_key: str = ""
 
+    # Auth
+    secret_key: str = "change-me-in-production-use-a-random-string"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
+
+    # Email (SMTP)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@modify.app"
+    smtp_from_name: str = "Modify"
+    smtp_use_tls: bool = True
+    email_verification_expire_hours: int = 24
+
+    # OAuth - Google
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/auth/oauth/google/callback"
+
+    # OAuth - Discord
+    discord_client_id: str = ""
+    discord_client_secret: str = ""
+    discord_redirect_uri: str = "http://localhost:8000/api/auth/oauth/discord/callback"
+
+    # OAuth - Apple
+    apple_client_id: str = ""
+    apple_team_id: str = ""
+    apple_key_id: str = ""
+    apple_private_key: str = ""
+    apple_redirect_uri: str = "http://localhost:8000/api/auth/oauth/apple/callback"
+
+    # Frontend URL (for email links and OAuth redirects)
+    frontend_url: str = "http://localhost:4200"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

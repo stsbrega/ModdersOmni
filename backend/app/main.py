@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 
-from app.api import specs, games, modlist, downloads, settings
+from app.api import specs, games, modlist, downloads, settings, auth
 from app.config import get_settings
 from app.database import engine, async_session, Base
 
@@ -85,6 +85,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(specs.router, prefix="/api/specs", tags=["specs"])
 app.include_router(games.router, prefix="/api/games", tags=["games"])
 app.include_router(modlist.router, prefix="/api/modlist", tags=["modlist"])

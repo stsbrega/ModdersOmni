@@ -1,6 +1,7 @@
 import { Component, signal, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-landing',
@@ -36,7 +37,14 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
           <a href="#features" class="nav-link" (click)="scrollTo($event, 'features')">Features</a>
           <a href="#how-it-works" class="nav-link" (click)="scrollTo($event, 'how-it-works')">How It Works</a>
         </div>
-        <a routerLink="/setup" class="nav-cta">Get Started</a>
+        <div class="nav-actions">
+          @if (authService.isLoggedIn()) {
+            <a routerLink="/dashboard" class="nav-cta">Dashboard</a>
+          } @else {
+            <a routerLink="/auth/login" class="nav-link nav-signin">Sign In</a>
+            <a routerLink="/auth/register" class="nav-cta">Sign Up</a>
+          }
+        </div>
       </div>
     </nav>
 
@@ -263,9 +271,9 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     <section class="section cta-section">
       <div class="section-container" style="text-align: center;">
         <h2 class="cta-title">Ready to build your<br>perfect mod setup?</h2>
-        <p class="cta-subtitle">It takes less than two minutes. No account required.</p>
-        <a routerLink="/setup" class="btn-primary btn-primary--lg">
-          Get Started Free
+        <p class="cta-subtitle">Create a free account and save your hardware profile for instant modlists.</p>
+        <a routerLink="/auth/register" class="btn-primary btn-primary--lg">
+          Create Free Account
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
@@ -354,6 +362,18 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       transition: color 0.15s;
     }
     .nav-link:hover { color: var(--color-text); }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .nav-signin {
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-signin:hover { color: var(--color-text); }
     .nav-cta {
       background: var(--color-gold);
       color: #0D0D0F;
@@ -911,6 +931,8 @@ export class LandingComponent implements OnInit, OnDestroy, AfterViewInit {
   scrolled = signal(false);
   stepsVisible = signal(false);
   featuresVisible = signal(false);
+
+  constructor(public authService: AuthService) {}
 
   private scrollHandler = () => {
     this.scrolled.set(window.scrollY > 20);
