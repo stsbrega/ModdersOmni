@@ -19,10 +19,16 @@ class Modlist(Base):
     cpu_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     ram_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vram_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     llm_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     entries: Mapped[list["ModlistEntry"]] = relationship(back_populates="modlist")
+    user: Mapped["User | None"] = relationship(back_populates="modlists")  # noqa: F821
 
 
 class ModlistEntry(Base):

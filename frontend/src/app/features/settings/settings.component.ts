@@ -1,8 +1,9 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { AuthService } from '../../core/services/auth.service';
 
 type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
 
@@ -49,8 +50,22 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
               </div>
               <div class="panel-section">
                 <h3>Email</h3>
-                <input type="email" class="input" [(ngModel)]="email" placeholder="your@email.com">
+                <input type="email" class="input" [value]="email" disabled>
+                <p class="input-hint">Email cannot be changed.</p>
               </div>
+              @if (!emailVerified) {
+                <div class="panel-section verify-banner">
+                  <div class="verify-info">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span>Email not verified.</span>
+                  </div>
+                  <button class="btn-verify" (click)="resendVerification()">Resend Link</button>
+                </div>
+              }
               <div class="panel-section">
                 <h3>Nexus Mods API Key</h3>
                 <input type="password" class="input" [(ngModel)]="nexusApiKey" placeholder="Enter your Nexus Mods API key">
@@ -97,23 +112,33 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
           }
           @case ('hardware') {
             <div class="tab-panel" @fadeIn>
+              @if (hardwareTier) {
+                <div class="tier-badge-row">
+                  <span class="tier-badge" [class]="'tier-' + hardwareTier.toLowerCase()">
+                    {{ hardwareTier }} TIER
+                  </span>
+                </div>
+              }
+              <div class="panel-section">
+                <h3>Paste & Scan</h3>
+                <textarea
+                  class="input scan-textarea"
+                  [(ngModel)]="hardwareRawText"
+                  placeholder="Paste hardware info from NVIDIA App, HWiNFO, or Task Manager..."
+                  rows="4"
+                ></textarea>
+                <button class="btn-scan" (click)="scanHardware()" [disabled]="scanLoading() || !hardwareRawText.trim()">
+                  @if (scanLoading()) {
+                    <span class="btn-spinner"></span>
+                    Scanning...
+                  } @else {
+                    Scan & Fill
+                  }
+                </button>
+              </div>
               <div class="panel-section">
                 <h3>GPU Model</h3>
-                <input type="text" class="input" [(ngModel)]="gpuModel" placeholder="e.g. NVIDIA GeForce RTX 4070" list="gpu-suggestions">
-                <datalist id="gpu-suggestions">
-                  <option value="NVIDIA GeForce RTX 4090"></option>
-                  <option value="NVIDIA GeForce RTX 4080"></option>
-                  <option value="NVIDIA GeForce RTX 4070 Ti"></option>
-                  <option value="NVIDIA GeForce RTX 4070"></option>
-                  <option value="NVIDIA GeForce RTX 4060 Ti"></option>
-                  <option value="NVIDIA GeForce RTX 4060"></option>
-                  <option value="NVIDIA GeForce RTX 3080"></option>
-                  <option value="NVIDIA GeForce RTX 3070"></option>
-                  <option value="NVIDIA GeForce RTX 3060"></option>
-                  <option value="AMD Radeon RX 7900 XTX"></option>
-                  <option value="AMD Radeon RX 7800 XT"></option>
-                  <option value="AMD Radeon RX 7600"></option>
-                </datalist>
+                <input type="text" class="input" [(ngModel)]="gpuModel" placeholder="e.g. NVIDIA GeForce RTX 4070">
               </div>
               <div class="panel-section">
                 <h3>VRAM</h3>
@@ -130,12 +155,8 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                 </div>
               </div>
               <div class="panel-section">
-                <h3>CPU Tier</h3>
-                <select class="input" [(ngModel)]="cpuTier">
-                  <option value="budget">Budget</option>
-                  <option value="midrange">Mid-range</option>
-                  <option value="highend">High-end</option>
-                </select>
+                <h3>CPU Model</h3>
+                <input type="text" class="input" [(ngModel)]="cpuModel" placeholder="e.g. AMD Ryzen 7 7800X3D">
               </div>
               <div class="hw-summary">
                 <h4>Hardware Summary</h4>
@@ -153,8 +174,8 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                     <span class="hw-val">{{ ramGb }} GB</span>
                   </div>
                   <div class="hw-item">
-                    <span class="hw-label">CPU Tier</span>
-                    <span class="hw-val capitalize">{{ cpuTier }}</span>
+                    <span class="hw-label">CPU</span>
+                    <span class="hw-val">{{ cpuModel || 'Not set' }}</span>
                   </div>
                 </div>
               </div>
@@ -418,6 +439,90 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
     }
     .capitalize { text-transform: capitalize; }
 
+    /* Verify Banner */
+    .verify-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(234, 179, 8, 0.08);
+      border: 1px solid rgba(234, 179, 8, 0.2) !important;
+      border-radius: 8px;
+      padding: 0.75rem 1rem !important;
+    }
+    .verify-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--color-warning);
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+    .btn-verify {
+      background: var(--color-gold);
+      color: #0D0D0F;
+      padding: 0.375rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-verify:hover { background: var(--color-gold-hover); }
+
+    /* Tier Badge */
+    .tier-badge-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .tier-badge {
+      padding: 0.375rem 1.25rem;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+    }
+    .tier-low { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .tier-mid { background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25); }
+    .tier-high { background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); }
+    .tier-ultra { background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25); }
+
+    /* Scan */
+    .scan-textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+    .btn-scan {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      margin-top: 0.5rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn-scan:hover {
+      border-color: var(--color-border-hover);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--color-text);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* Toggle Group */
     .toggle-group {
       display: flex;
@@ -534,7 +639,7 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
     }
   `],
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit {
   activeTab = signal<SettingsTab>('profile');
 
   tabs: { id: SettingsTab; label: string }[] = [
@@ -547,6 +652,7 @@ export class SettingsComponent {
   // Profile
   displayName = '';
   email = '';
+  emailVerified = false;
   nexusApiKey = '';
   llmProvider = 'ollama';
   ollamaBaseUrl = 'http://localhost:11434/v1';
@@ -559,7 +665,10 @@ export class SettingsComponent {
   gpuModel = '';
   vramGb = 8;
   ramGb = 16;
-  cpuTier = 'midrange';
+  cpuModel = '';
+  hardwareTier = '';
+  hardwareRawText = '';
+  scanLoading = signal(false);
 
   // Preferences
   gameOptions = [
@@ -581,8 +690,13 @@ export class SettingsComponent {
   constructor(
     private api: ApiService,
     private notifications: NotificationService,
-  ) {
+    private authService: AuthService,
+  ) {}
+
+  ngOnInit(): void {
+    this.loadProfile();
     this.loadSettings();
+    this.loadHardware();
   }
 
   toggleGame(game: string): void {
@@ -595,6 +709,60 @@ export class SettingsComponent {
     this.selectedModCategories.update(cats =>
       cats.includes(cat) ? cats.filter(c => c !== cat) : [...cats, cat]
     );
+  }
+
+  resendVerification(): void {
+    this.authService.resendVerification().subscribe({
+      next: () => this.notifications.success('Verification email sent'),
+      error: () => this.notifications.error('Failed to send verification email'),
+    });
+  }
+
+  scanHardware(): void {
+    if (!this.hardwareRawText.trim()) return;
+    this.scanLoading.set(true);
+    this.api.parseSpecs(this.hardwareRawText).subscribe({
+      next: (response) => {
+        this.scanLoading.set(false);
+        if (response.specs) {
+          if (response.specs.gpu) this.gpuModel = response.specs.gpu;
+          if (response.specs.cpu) this.cpuModel = response.specs.cpu;
+          if (response.specs.ram_gb) this.ramGb = response.specs.ram_gb;
+          if (response.specs.vram_mb) this.vramGb = Math.round(response.specs.vram_mb / 1024);
+        }
+        if (response.tier) this.hardwareTier = response.tier;
+        this.notifications.success('Hardware info scanned successfully');
+      },
+      error: () => {
+        this.scanLoading.set(false);
+        this.notifications.error('Failed to scan hardware info');
+      },
+    });
+  }
+
+  private loadProfile(): void {
+    const user = this.authService.user();
+    if (user) {
+      this.displayName = user.display_name || '';
+      this.email = user.email;
+      this.emailVerified = user.email_verified;
+    }
+  }
+
+  private loadHardware(): void {
+    this.authService.getHardware().subscribe({
+      next: (hw) => {
+        if (hw) {
+          this.gpuModel = hw.gpu_model || '';
+          this.cpuModel = hw.cpu_model || '';
+          this.ramGb = hw.ram_gb || 16;
+          this.vramGb = hw.vram_mb ? Math.round(hw.vram_mb / 1024) : 8;
+          this.hardwareTier = hw.hardware_tier || '';
+          this.hardwareRawText = hw.hardware_raw_text || '';
+        }
+      },
+      error: () => {},
+    });
   }
 
   private loadSettings(): void {
@@ -614,6 +782,26 @@ export class SettingsComponent {
   }
 
   saveSettings(): void {
+    // Save profile
+    this.authService.updateProfile({ display_name: this.displayName }).subscribe({
+      error: () => this.notifications.error('Failed to save profile'),
+    });
+
+    // Save hardware
+    this.authService.saveHardware({
+      gpu_model: this.gpuModel || undefined,
+      cpu_model: this.cpuModel || undefined,
+      ram_gb: this.ramGb,
+      vram_mb: this.vramGb * 1024,
+      hardware_raw_text: this.hardwareRawText || undefined,
+    }).subscribe({
+      next: (hw) => {
+        this.hardwareTier = hw.hardware_tier || '';
+      },
+      error: () => this.notifications.error('Failed to save hardware'),
+    });
+
+    // Save API/LLM settings
     this.api.updateSettings({
       nexus_api_key: this.nexusApiKey,
       llm_provider: this.llmProvider,

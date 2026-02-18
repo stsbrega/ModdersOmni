@@ -8,6 +8,11 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
+      // Skip 401 errors — the auth interceptor handles token refresh
+      if (error.status === 401) {
+        return throwError(() => error);
+      }
+
       let message = 'An unexpected error occurred';
 
       if (error.status === 0) {
