@@ -41,7 +41,7 @@ from app.services.auth import (
 from app.services.email import send_password_reset_email, send_verification_email
 from app.services.oauth import get_oauth_provider
 from app.services.tier_classifier import classify_hardware_tier
-from app.api.deps import get_current_user, get_current_user_optional
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 

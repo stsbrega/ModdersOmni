@@ -68,7 +68,7 @@ class GoogleOAuthProvider(OAuthProvider):
             client_secret=settings.google_client_secret,
             redirect_uri=settings.google_redirect_uri,
         ) as client:
-            token = await client.fetch_token(
+            await client.fetch_token(
                 self.TOKEN_URL, code=code, grant_type="authorization_code"
             )
             resp = await client.get(self.USERINFO_URL)
@@ -114,7 +114,7 @@ class DiscordOAuthProvider(OAuthProvider):
             client_secret=settings.discord_client_secret,
             redirect_uri=settings.discord_redirect_uri,
         ) as client:
-            token = await client.fetch_token(
+            await client.fetch_token(
                 self.TOKEN_URL, code=code, grant_type="authorization_code"
             )
             resp = await client.get(self.USERINFO_URL)
