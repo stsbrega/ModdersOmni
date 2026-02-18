@@ -14,7 +14,6 @@ export interface Modlist {
   id: string;
   game_id: number;
   playstyle_id: number;
-  hardware_tier?: string;
   entries: ModEntry[];
   llm_provider?: string;
 }

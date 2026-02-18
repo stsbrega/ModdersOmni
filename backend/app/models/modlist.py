@@ -15,7 +15,6 @@ class Modlist(Base):
     )
     game_id: Mapped[int] = mapped_column(ForeignKey("games.id"))
     playstyle_id: Mapped[int] = mapped_column(ForeignKey("playstyles.id"))
-    hardware_tier: Mapped[str | None] = mapped_column(String(10), nullable=True)
     gpu_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cpu_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     ram_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
