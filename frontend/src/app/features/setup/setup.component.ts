@@ -5,21 +5,35 @@ import { PlaystyleSelectComponent } from './steps/playstyle-select/playstyle-sel
 import { HardwareSpecs } from '../../shared/models/specs.model';
 import { ApiService } from '../../core/services/api.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
   selector: 'app-setup',
   standalone: true,
   imports: [GameSelectComponent, SpecInputComponent, PlaystyleSelectComponent],
+  animations: [
+    trigger('fadeUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(12px)' }),
+        animate('350ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+  ],
   template: `
     <div class="setup">
-      <h1>FORGE YOUR LOADOUT</h1>
+      <div class="setup-header" @fadeUp>
+        <span class="setup-label">Setup Wizard</span>
+        <h1>Build Your Modlist</h1>
+      </div>
 
       <div class="stepper">
         @for (step of steps; track step.number; let i = $index) {
           <div class="step" [class.active]="currentStep() === step.number" [class.completed]="currentStep() > step.number">
-            <div class="step-number">
+            <div class="step-indicator">
               @if (currentStep() > step.number) {
-                <span>&#10003;</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
               } @else {
                 {{ step.number }}
               }
@@ -27,7 +41,7 @@ import { ThemeService } from '../../core/services/theme.service';
             <span class="step-label">{{ step.label }}</span>
           </div>
           @if (i < steps.length - 1) {
-            <div class="step-divider" [class.active]="currentStep() > step.number"></div>
+            <div class="step-line" [class.active]="currentStep() > step.number"></div>
           }
         }
       </div>
@@ -38,20 +52,31 @@ import { ThemeService } from '../../core/services/theme.service';
             <app-game-select (gameSelected)="onGameSelected($event)" />
           }
           @case (2) {
-            <div class="version-select">
-              <h2>CHOOSE YOUR VERSION</h2>
-              <p class="subtitle">Select which version you want to mod.</p>
+            <div class="version-select" @fadeUp>
+              <h2>Select Version</h2>
+              <p class="step-desc">Choose which edition you want to mod.</p>
               <div class="versions-grid">
                 @for (version of selectedGameVersions(); track version) {
                   <button class="version-card" (click)="onVersionSelected(version)">
-                    <div class="version-icon">✓</div>
+                    <div class="version-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                        <line x1="7" y1="7" x2="7.01" y2="7"/>
+                      </svg>
+                    </div>
                     <h3>{{ version }}</h3>
+                    <svg class="version-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
                   </button>
                 }
               </div>
-              <div class="actions">
-                <button class="btn-secondary" (click)="goBack()">Back</button>
-              </div>
+              <button class="btn-back" (click)="goBack()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back
+              </button>
             </div>
           }
           @case (3) {
@@ -70,136 +95,167 @@ import { ThemeService } from '../../core/services/theme.service';
     </div>
   `,
   styles: [`
+    :host { display: block; }
+
     .setup {
-      max-width: 800px;
+      max-width: 760px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 2.5rem 2rem;
     }
-    .setup h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 2rem;
+    .setup-header {
       text-align: center;
-      font-family: var(--font-heading);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      margin-bottom: 2.5rem;
     }
+    .setup-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-gold);
+      margin-bottom: 0.625rem;
+    }
+    .setup-header h1 {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    /* Stepper */
     .stepper {
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 3rem;
-      gap: 0.5rem;
+      gap: 0;
     }
     .step {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      opacity: 0.5;
-      transition: opacity 0.2s;
+      opacity: 0.35;
+      transition: opacity 0.25s;
     }
     .step.active, .step.completed { opacity: 1; }
-    .step-number {
-      width: 32px;
-      height: 32px;
+    .step-indicator {
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       font-weight: 600;
+      color: var(--color-text-muted);
+      transition: all 0.25s;
     }
-    .step.active .step-number {
-      background: var(--color-primary);
-      color: white;
+    .step.active .step-indicator {
+      background: var(--color-gold);
+      border-color: var(--color-gold);
+      color: #0D0D0F;
     }
-    .step.completed .step-number {
-      background: var(--color-accent-green);
+    .step.completed .step-indicator {
+      background: var(--color-success);
+      border-color: var(--color-success);
       color: white;
     }
     .step-label {
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       font-weight: 500;
+      color: var(--color-text-muted);
     }
-    .step-divider {
-      width: 40px;
-      height: 2px;
-      background: var(--color-bg-elevated);
-      transition: background 0.2s;
+    .step.active .step-label { color: var(--color-text); }
+    .step-line {
+      width: 36px;
+      height: 1px;
+      background: var(--color-border);
+      margin: 0 0.5rem;
+      transition: background 0.25s;
     }
-    .step-divider.active {
-      background: var(--color-accent-green);
-    }
+    .step-line.active { background: var(--color-success); }
 
+    /* Version Select */
     .version-select {
       text-align: center;
     }
     .version-select h2 {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       font-weight: 600;
-      margin-bottom: 0.5rem;
-      font-family: var(--font-heading);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      margin-bottom: 0.375rem;
     }
-    .version-select .subtitle {
+    .step-desc {
+      font-size: 0.875rem;
       color: var(--color-text-muted);
       margin-bottom: 2rem;
     }
     .versions-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
       max-width: 500px;
       margin: 0 auto 2rem;
     }
     .version-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
       background: var(--color-bg-card);
-      border: 2px solid var(--color-border);
-      border-radius: 12px;
-      padding: 2rem;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
       cursor: pointer;
-      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
       color: var(--color-text);
       font-family: inherit;
+      transition: border-color 0.2s, transform 0.15s, background 0.15s;
     }
     .version-card:hover {
-      border-color: var(--color-primary);
-      transform: translateY(-2px);
-      box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+      border-color: var(--color-gold);
+      transform: translateY(-1px);
+      background: rgba(192, 160, 96, 0.04);
     }
     .version-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(192, 160, 96, 0.1);
+      color: var(--color-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
     .version-card h3 {
-      font-size: 1rem;
+      flex: 1;
+      font-size: 0.9375rem;
       font-weight: 600;
       margin: 0;
+      text-align: left;
+    }
+    .version-arrow {
+      color: var(--color-text-dim);
+      transition: color 0.15s, transform 0.15s;
+    }
+    .version-card:hover .version-arrow {
+      color: var(--color-gold);
+      transform: translateX(2px);
     }
 
-    .actions {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 2rem;
-    }
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid var(--color-border);
-      color: var(--color-text);
-      padding: 0.625rem 1.5rem;
-      border-radius: 8px;
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
       font-weight: 500;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.875rem;
-      transition: background 0.2s;
+      padding: 0.5rem 0;
+      transition: color 0.15s;
     }
-    .btn-secondary:hover {
-      background: var(--color-bg-elevated);
-    }
+    .btn-back:hover { color: var(--color-text); }
   `],
 })
 export class SetupComponent {
@@ -210,9 +266,9 @@ export class SetupComponent {
   parsedSpecs = signal<HardwareSpecs | null>(null);
 
   steps = [
-    { number: 1, label: 'Select Game' },
-    { number: 2, label: 'Game Version' },
-    { number: 3, label: 'Hardware Specs' },
+    { number: 1, label: 'Game' },
+    { number: 2, label: 'Version' },
+    { number: 3, label: 'Hardware' },
     { number: 4, label: 'Playstyle' },
   ];
 
@@ -223,17 +279,14 @@ export class SetupComponent {
 
   onGameSelected(gameId: number): void {
     this.selectedGameId.set(gameId);
-    // Fetch game details to get versions
     this.api.getGames().subscribe({
       next: (games) => {
         const game = games.find((g) => g.id === gameId);
         if (game && game.versions && game.versions.length > 0) {
           this.selectedGameVersions.set(game.versions);
           this.currentStep.set(2);
-          // Set theme based on game slug
           this.themeService.setThemeFromSlug(game.slug);
         } else {
-          // If no versions, skip to specs
           this.currentStep.set(3);
         }
       },
