@@ -33,11 +33,13 @@ export class ApiService {
   generateModlist(request: {
     game_id: number;
     playstyle_id: number;
+    game_version?: string;
     gpu?: string;
     vram_mb?: number;
     cpu?: string;
     ram_gb?: number;
-    hardware_tier?: string;
+    cpu_cores?: number;
+    cpu_speed_ghz?: number;
   }): Observable<Modlist> {
     return this.http.post<Modlist>(`${this.baseUrl}/modlist/generate`, request);
   }

@@ -22,5 +22,6 @@ class Mod(Base):
     external_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     vram_requirement_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     performance_impact: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    game_version_support: Mapped[str] = mapped_column(String(30), default="all")
     updated_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DownloadStatus } from '../../shared/models/mod.model';
@@ -10,7 +10,7 @@ import { DownloadStatus } from '../../shared/models/mod.model';
   template: `
     <div class="downloads-page">
       <div class="page-header">
-        <h1>Downloads</h1>
+        <h1>DEPLOYMENT STATUS</h1>
         @if (isLive()) {
           <span class="live-badge">LIVE</span>
         }
@@ -18,8 +18,8 @@ import { DownloadStatus } from '../../shared/models/mod.model';
 
       @if (!modlistId) {
         <div class="empty-state">
-          <p>No active downloads.</p>
-          <p class="text-muted">Start a download from your modlist page.</p>
+          <p>No active deployments.</p>
+          <p class="text-muted">Start a deployment from your loadout page.</p>
         </div>
       } @else {
         <!-- Stats Bar -->
@@ -87,7 +87,15 @@ import { DownloadStatus } from '../../shared/models/mod.model';
         @if (downloads().length === 0) {
           <div class="empty-state">
             <div class="spinner"></div>
-            <p>Waiting for download status...</p>
+            <p>Waiting for deployment status...</p>
+          </div>
+        }
+
+        @if (allDownloadsComplete()) {
+          <div class="completion-footer">
+            <button class="btn-return" (click)="returnToLoadout()">
+              Return to Loadout
+            </button>
           </div>
         }
       }
@@ -102,10 +110,17 @@ import { DownloadStatus } from '../../shared/models/mod.model';
       gap: 0.75rem;
       margin-bottom: 2rem;
     }
-    h1 { font-size: 1.75rem; font-weight: 700; margin: 0; }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0;
+      font-family: var(--font-heading);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
 
     .live-badge {
-      background: #dc2626;
+      background: var(--color-accent-red);
       color: white;
       font-size: 0.625rem;
       font-weight: 700;
@@ -131,12 +146,18 @@ import { DownloadStatus } from '../../shared/models/mod.model';
       border-radius: 8px;
       padding: 1rem;
       text-align: center;
+      transition: all 0.2s ease;
+    }
+    .stat:hover {
+      border-color: var(--color-primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     .stat-value {
       display: block;
       font-size: 1.5rem;
       font-weight: 700;
       color: var(--color-accent-green);
+      font-family: var(--font-heading);
     }
     .stat-value.downloading { color: #60a5fa; }
     .stat-value.failed { color: #f87171; }
@@ -187,6 +208,11 @@ import { DownloadStatus } from '../../shared/models/mod.model';
       border: 1px solid var(--color-border);
       border-radius: 8px;
       padding: 0.875rem 1rem;
+      transition: all 0.2s ease;
+    }
+    .download-item:hover {
+      border-color: var(--color-border-hover);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     .item-info {
       display: flex;
@@ -238,6 +264,32 @@ import { DownloadStatus } from '../../shared/models/mod.model';
       margin: 0 auto 1rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .completion-footer {
+      display: flex;
+      justify-content: center;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .btn-return {
+      background: var(--color-primary);
+      color: white;
+      padding: 0.75rem 2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.2s ease;
+    }
+    .btn-return:hover {
+      background: var(--color-primary-hover);
+      box-shadow: 0 0 12px 2px var(--color-primary-glow);
+    }
   `],
 })
 export class DownloadsComponent implements OnInit, OnDestroy {
@@ -260,8 +312,14 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     return Math.round(total / items.length);
   });
 
+  allDownloadsComplete = computed(() => {
+    const items = this.downloads();
+    return items.length > 0 && items.every(s => s.status === 'complete' || s.status === 'failed');
+  });
+
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private api: ApiService,
     private notifications: NotificationService,
   ) {}
@@ -278,6 +336,12 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     this.ws?.close();
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
+    }
+  }
+
+  returnToLoadout(): void {
+    if (this.modlistId) {
+      this.router.navigate(['/modlist', this.modlistId]);
     }
   }
 

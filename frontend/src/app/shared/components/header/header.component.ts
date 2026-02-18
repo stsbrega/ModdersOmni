@@ -13,10 +13,10 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           <span class="logo-text">Modify</span>
         </a>
         <nav class="nav">
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
-          <a routerLink="/setup" routerLinkActive="active">New Modlist</a>
-          <a routerLink="/downloads" routerLinkActive="active">Downloads</a>
-          <a routerLink="/settings" routerLinkActive="active">Settings</a>
+          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">HQ</a>
+          <a routerLink="/setup" routerLinkActive="active">New Build</a>
+          <a routerLink="/downloads" routerLinkActive="active">Armory</a>
+          <a routerLink="/settings" routerLinkActive="active">Config</a>
         </nav>
       </div>
     </header>
@@ -53,10 +53,13 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       justify-content: center;
       font-weight: 700;
       font-size: 1.25rem;
+      border-bottom: 3px solid var(--color-primary-glow);
+      box-shadow: 0 0 12px var(--color-primary-glow);
     }
     .logo-text {
       font-size: 1.25rem;
       font-weight: 600;
+      font-family: var(--font-heading);
     }
     .nav {
       display: flex;

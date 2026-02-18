@@ -4,6 +4,7 @@ export interface Game {
   slug: string;
   nexus_domain: string;
   image_url?: string;
+  versions?: string[];
 }
 
 export interface Playstyle {

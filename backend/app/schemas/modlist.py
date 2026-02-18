@@ -5,11 +5,13 @@ import uuid
 class ModlistGenerateRequest(BaseModel):
     game_id: int
     playstyle_id: int
+    game_version: str | None = None  # e.g. "SE", "AE", "Standard", "Next-Gen"
     gpu: str | None = None
     vram_mb: int | None = None
     cpu: str | None = None
     ram_gb: int | None = None
-    hardware_tier: str | None = None
+    cpu_cores: int | None = None
+    cpu_speed_ghz: float | None = None
 
 
 class ModEntry(BaseModel):
@@ -28,7 +30,6 @@ class ModlistResponse(BaseModel):
     id: uuid.UUID
     game_id: int
     playstyle_id: int
-    hardware_tier: str | None = None
     entries: list[ModEntry] = []
     llm_provider: str | None = None
 

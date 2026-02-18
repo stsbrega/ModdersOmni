@@ -3,19 +3,16 @@ import { Router } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { Playstyle } from '../../../../shared/models/game.model';
 import { HardwareSpecs } from '../../../../shared/models/specs.model';
-import { HardwareBadgeComponent } from '../../../../shared/components/hardware-badge/hardware-badge.component';
 
 @Component({
   selector: 'app-playstyle-select',
   standalone: true,
-  imports: [HardwareBadgeComponent],
+  imports: [],
   template: `
     <div class="playstyle-select">
-      <h2>Choose Your Playstyle</h2>
+      <h2>CHOOSE YOUR PATH</h2>
       <p class="subtitle">
-        Select the experience you want. Your
-        <app-hardware-badge [tier]="specs.tier || 'mid'" />
-        tier hardware will be taken into account.
+        Select the experience you want. Your hardware specs will be taken into account.
       </p>
 
       <div class="playstyles-grid">
@@ -42,14 +39,25 @@ import { HardwareBadgeComponent } from '../../../../shared/components/hardware-b
           (click)="generate()"
           [disabled]="!selectedId() || loading()"
         >
-          {{ loading() ? 'Generating...' : 'Generate Modlist' }}
+          {{ loading() ? 'Forging...' : 'Forge Modlist' }}
         </button>
       </div>
     </div>
   `,
   styles: [`
-    .playstyle-select { max-width: 700px; margin: 0 auto; }
-    h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; text-align: center; }
+    .playstyle-select {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      text-align: center;
+      font-family: var(--font-heading);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
     .subtitle {
       color: var(--color-text-muted);
       text-align: center;
@@ -64,20 +72,29 @@ import { HardwareBadgeComponent } from '../../../../shared/components/hardware-b
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1rem;
+      margin-bottom: 2rem;
     }
     .playstyle-card {
       background: var(--color-bg-card);
       border: 2px solid var(--color-border);
+      border-left: 3px solid var(--color-border);
       border-radius: 12px;
       padding: 1.5rem;
       text-align: left;
       cursor: pointer;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: all 0.2s;
       color: var(--color-text);
       font-family: inherit;
     }
-    .playstyle-card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
-    .playstyle-card.selected { border-color: var(--color-primary); background: rgba(99, 102, 241, 0.1); }
+    .playstyle-card:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+    }
+    .playstyle-card.selected {
+      border-color: var(--color-primary);
+      border-left: 3px solid var(--color-accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
     .playstyle-icon {
       width: 40px;
       height: 40px;
@@ -88,17 +105,32 @@ import { HardwareBadgeComponent } from '../../../../shared/components/hardware-b
       justify-content: center;
       font-size: 1.25rem;
       margin-bottom: 0.75rem;
+      font-weight: 600;
     }
-    .playstyle-card h3 { font-size: 0.9rem; font-weight: 600; margin: 0 0 0.5rem; }
-    .playstyle-card p { color: var(--color-text-muted); font-size: 0.8rem; line-height: 1.4; margin: 0; }
-    .text-muted { color: var(--color-text-muted); text-align: center; grid-column: 1 / -1; }
+    .playstyle-card h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+    .playstyle-card p {
+      color: var(--color-text-muted);
+      font-size: 0.8rem;
+      line-height: 1.4;
+      margin: 0;
+    }
+    .text-muted {
+      color: var(--color-text-muted);
+      text-align: center;
+      grid-column: 1 / -1;
+    }
 
     .actions {
       display: flex;
       justify-content: space-between;
-      margin-top: 2rem;
+      gap: 1rem;
     }
     .btn-primary {
+      flex: 1;
       background: var(--color-primary);
       color: white;
       padding: 0.625rem 1.5rem;
@@ -108,9 +140,15 @@ import { HardwareBadgeComponent } from '../../../../shared/components/hardware-b
       cursor: pointer;
       font-family: inherit;
       font-size: 0.875rem;
+      transition: background 0.2s;
     }
-    .btn-primary:hover { background: var(--color-primary-hover); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary:hover {
+      background: var(--color-primary-hover);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     .btn-secondary {
       background: transparent;
       border: 1px solid var(--color-border);
@@ -121,13 +159,17 @@ import { HardwareBadgeComponent } from '../../../../shared/components/hardware-b
       cursor: pointer;
       font-family: inherit;
       font-size: 0.875rem;
+      transition: background 0.2s;
     }
-    .btn-secondary:hover { background: var(--color-bg-elevated); }
+    .btn-secondary:hover {
+      background: var(--color-bg-elevated);
+    }
   `],
 })
 export class PlaystyleSelectComponent implements OnInit {
   @Input() gameId!: number;
   @Input() specs!: HardwareSpecs;
+  @Input() gameVersion: string | undefined;
   @Output() back = new EventEmitter<void>();
 
   playstyles = signal<Playstyle[]>([]);
@@ -163,7 +205,9 @@ export class PlaystyleSelectComponent implements OnInit {
         vram_mb: this.specs.vram_mb,
         cpu: this.specs.cpu,
         ram_gb: this.specs.ram_gb,
-        hardware_tier: this.specs.tier,
+        cpu_cores: this.specs.cpu_cores,
+        cpu_speed_ghz: this.specs.cpu_speed_ghz,
+        game_version: this.gameVersion,
       })
       .subscribe({
         next: (modlist) => {

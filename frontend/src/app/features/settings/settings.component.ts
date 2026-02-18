@@ -9,7 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
   imports: [FormsModule],
   template: `
     <div class="settings-page">
-      <h1>Settings</h1>
+      <h1>CONFIGURATION</h1>
 
       <section class="settings-section">
         <h2>Nexus Mods</h2>
@@ -85,20 +85,32 @@ import { NotificationService } from '../../core/services/notification.service';
         </div>
       </section>
 
-      <button class="btn-primary" (click)="saveSettings()">Save Settings</button>
+      <button class="btn-primary" (click)="saveSettings()">Save Configuration</button>
     </div>
   `,
   styles: [`
     .settings-page { max-width: 600px; margin: 0 auto; padding: 2rem; }
-    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 2rem; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      font-family: var(--font-heading);
+      letter-spacing: 0.05em;
+    }
     .settings-section {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
+      border-left: 3px solid var(--color-primary);
       border-radius: 12px;
       padding: 1.5rem;
       margin-bottom: 1.5rem;
     }
-    h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; }
+    h2 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      font-family: var(--font-heading);
+    }
     .form-group { margin-bottom: 1rem; }
     .form-group label {
       display: block;
@@ -117,8 +129,12 @@ import { NotificationService } from '../../core/services/notification.service';
       font-family: inherit;
       font-size: 0.875rem;
       outline: none;
+      transition: border-color 0.2s;
     }
-    .form-input:focus { border-color: var(--color-primary); }
+    .form-input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 8px rgba(var(--color-primary), 0.2);
+    }
     select.form-input { cursor: pointer; }
     .form-help { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.375rem; }
     .btn-primary {
@@ -131,6 +147,7 @@ import { NotificationService } from '../../core/services/notification.service';
       cursor: pointer;
       font-family: inherit;
       font-size: 0.875rem;
+      transition: background 0.2s;
     }
     .btn-primary:hover { background: var(--color-primary-hover); }
   `],
@@ -182,8 +199,8 @@ export class SettingsComponent implements OnInit {
         custom_source_api_key: this.customSourceKey,
       })
       .subscribe({
-        next: () => this.notifications.success('Settings saved successfully'),
-        error: () => this.notifications.error('Failed to save settings'),
+        next: () => this.notifications.success('Configuration saved successfully'),
+        error: () => this.notifications.error('Failed to save configuration'),
       });
   }
 }

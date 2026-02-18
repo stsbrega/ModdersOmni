@@ -12,9 +12,7 @@ from app.models.modlist import Modlist, ModlistEntry
 from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
 from app.schemas.modlist import ModEntry, ModlistGenerateRequest, ModlistResponse
-from app.services.modlist_generator import generate_modlist as run_generation
-from app.services.tier_classifier import classify_tier
-from app.schemas.specs import HardwareSpecs
+from app.services.modlist_generator import generate_modlist as run_generation, _is_version_compatible
 
 logger = logging.getLogger(__name__)
 
@@ -35,30 +33,20 @@ async def generate_modlist(
     if not playstyle:
         raise HTTPException(status_code=404, detail="Playstyle not found")
 
-    # Determine hardware tier if not provided
-    hardware_tier = request.hardware_tier
-    if not hardware_tier:
-        specs = HardwareSpecs(
-            gpu=request.gpu,
-            vram_mb=request.vram_mb,
-            cpu=request.cpu,
-            ram_gb=request.ram_gb,
-        )
-        hardware_tier = classify_tier(specs)
-
     try:
         # Run the AI generation pipeline
         generated_mods = await run_generation(db, request)
     except Exception as e:
         logger.error(f"LLM generation failed: {e}")
         # Fallback: return curated mods from the database without LLM
-        generated_mods = await _fallback_modlist(db, request.playstyle_id, hardware_tier)
+        generated_mods = await _fallback_modlist(
+            db, request.playstyle_id, request.vram_mb, request.game_version
+        )
 
     # Save the modlist to the database
     modlist = Modlist(
         game_id=request.game_id,
         playstyle_id=request.playstyle_id,
-        hardware_tier=hardware_tier,
         gpu_model=request.gpu,
         cpu_model=request.cpu,
         ram_gb=request.ram_gb,
@@ -98,18 +86,22 @@ async def generate_modlist(
         id=modlist.id,
         game_id=request.game_id,
         playstyle_id=request.playstyle_id,
-        hardware_tier=hardware_tier,
         entries=entries,
         llm_provider=modlist.llm_provider,
     )
 
 
+# VRAM thresholds that map to the old tier_min values in seed data
+# low = any VRAM, mid = 6GB+, high = 10GB+, ultra = 16GB+
+_TIER_MIN_VRAM = {"low": 0, "mid": 6144, "high": 10240, "ultra": 16384}
+
+
 async def _fallback_modlist(
-    db: AsyncSession, playstyle_id: int, hardware_tier: str
+    db: AsyncSession, playstyle_id: int, user_vram_mb: int | None,
+    game_version: str | None = None,
 ) -> list[dict]:
     """Fallback: return curated mods from DB when LLM is unavailable."""
-    tier_rank = {"low": 1, "mid": 2, "high": 3, "ultra": 4}
-    user_rank = tier_rank.get(hardware_tier, 2)
+    vram = user_vram_mb or 6144  # default to 6GB if unknown
 
     result = await db.execute(
         select(Mod, PlaystyleMod)
@@ -120,14 +112,17 @@ async def _fallback_modlist(
 
     mods = []
     for i, (mod, pm) in enumerate(result.all()):
-        min_rank = tier_rank.get(pm.hardware_tier_min or "low", 1)
-        if user_rank >= min_rank:
+        # Filter by version compatibility
+        if not _is_version_compatible(mod.game_version_support, game_version):
+            continue
+        min_vram = _TIER_MIN_VRAM.get(pm.hardware_tier_min or "low", 0)
+        if vram >= min_vram:
             mods.append({
                 "mod_id": mod.id,
                 "name": mod.name,
                 "author": mod.author,
                 "summary": mod.summary,
-                "reason": f"Curated for {hardware_tier} tier hardware (priority: {pm.priority})",
+                "reason": f"Curated mod (priority: {pm.priority})",
                 "load_order": i + 1,
             })
 
@@ -173,7 +168,6 @@ async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
         id=modlist.id,
         game_id=modlist.game_id,
         playstyle_id=modlist.playstyle_id,
-        hardware_tier=modlist.hardware_tier,
         entries=entries,
         llm_provider=modlist.llm_provider,
     )

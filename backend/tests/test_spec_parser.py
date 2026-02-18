@@ -52,6 +52,30 @@ def test_parse_full_system():
     assert specs.ram_gb == 16
 
 
+def test_parse_ram_system_memory():
+    text = "System Memory: 32 GB"
+    specs = parse_specs_regex(text)
+    assert specs.ram_gb == 32
+
+
+def test_parse_ram_total_physical():
+    text = "Total Physical Memory: 32,651 MB"
+    specs = parse_specs_regex(text)
+    assert specs.ram_gb == 32
+
+
+def test_parse_ram_installed_physical():
+    text = "Installed Physical Memory (RAM): 64 GB"
+    specs = parse_specs_regex(text)
+    assert specs.ram_gb == 64
+
+
+def test_parse_ram_decimal():
+    text = "System Memory: 31.9 GB"
+    specs = parse_specs_regex(text)
+    assert specs.ram_gb == 31
+
+
 def test_parse_empty_text():
     specs = parse_specs_regex("")
     assert specs.gpu is None

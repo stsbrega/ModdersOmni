@@ -75,7 +75,12 @@ async def seed_mods(
 ) -> dict[str, int]:
     """Seed mods table, return mod_name -> id mapping."""
     mod_map = {}
-    for nexus_id, name, author, summary, category, impact, vram in mod_list:
+    for mod_tuple in mod_list:
+        if len(mod_tuple) == 8:
+            nexus_id, name, author, summary, category, impact, vram, version_support = mod_tuple
+        else:
+            nexus_id, name, author, summary, category, impact, vram = mod_tuple
+            version_support = "all"
         existing = await session.execute(
             select(Mod).where(
                 Mod.nexus_mod_id == nexus_id,
@@ -93,6 +98,7 @@ async def seed_mods(
                 category=category,
                 performance_impact=impact,
                 vram_requirement_mb=vram,
+                game_version_support=version_support,
                 source="nexus",
                 external_url=f"https://www.nexusmods.com/{nexus_game_domain}/mods/{nexus_id}",
             )

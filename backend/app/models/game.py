@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Text
+from sqlalchemy import JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -19,6 +19,7 @@ class Game(Base):
     slug: Mapped[str] = mapped_column(String(50), unique=True)
     nexus_domain: Mapped[str] = mapped_column(String(50))
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    versions: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     playstyles: Mapped[list["Playstyle"]] = relationship(back_populates="game")

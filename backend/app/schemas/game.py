@@ -7,6 +7,7 @@ class GameResponse(BaseModel):
     slug: str
     nexus_domain: str
     image_url: str | None = None
+    versions: list[str] | None = None
 
     model_config = {"from_attributes": True}
 
