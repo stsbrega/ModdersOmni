@@ -85,13 +85,3 @@ jobs:
       - name: Build
         run: npx ng build --configuration=production
 
-  docker:
-    runs-on: ubuntu-latest
-    needs: [backend, frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate Docker Compose
-        run: docker compose config --quiet

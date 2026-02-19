@@ -13,7 +13,7 @@ Modify is an AI-powered game modding assistant that generates personalized mod l
 - **Migrations**: Alembic (no migrations yet — seed script uses `create_all`)
 - **LLM**: OpenAI-compatible client (`openai` SDK) — supports Ollama (local), Groq, Together AI, HuggingFace (cloud)
 - **Mod API**: Nexus Mods v2 GraphQL API + optional custom mod source
-- **Deployment**: Docker Compose (local), Railway (production)
+- **Deployment**: Render (production) — Python native runtime (backend), static site (frontend), managed PostgreSQL. Defined in `render.yaml` blueprint.
 - **License**: GPL-3.0
 
 ## Project Structure
@@ -81,8 +81,7 @@ frontend/
       settings/       # User settings view
     app.routes.ts     # Top-level routing
     app.config.ts     # App config (providers, authInterceptor, errorInterceptor)
-  nginx.conf          # Nginx template (uses ${PORT} substitution)
-  docker-entrypoint.sh # Runtime env injection (PORT, API_URL)
+  public/env-config.js # Runtime API URL config (generated at build time on Render)
 ```
 
 ## Common Commands
@@ -93,13 +92,13 @@ frontend/
 # 1. Backend setup (from backend/)
 cp .env.example .env                     # Configure env vars (defaults work for local dev)
 pip install -r requirements.txt
-# Ensure PostgreSQL is running (or use docker-compose up -d db)
+# Ensure PostgreSQL is running locally
 python -m app.seeds.run_seed             # Creates tables + seeds data
 uvicorn app.main:app --reload            # Backend on localhost:8000
 
 # 2. Frontend setup (from frontend/)
 npm install
-npm start                                # Frontend on localhost:4200
+npm start                                # Frontend on localhost:4200 (proxies /api to localhost:8000)
 ```
 
 ### Backend (run from `backend/`)
@@ -124,16 +123,16 @@ npm run build                           # Production build
 npm test                                # Run Karma/Jasmine tests
 ```
 
-### Docker (run from repo root)
+### Deployment (Render)
 
-```bash
-docker-compose up -d                    # Start full stack
-# Frontend: http://localhost:4200
-# Backend:  http://localhost:8000
-# Swagger:  http://localhost:8000/docs
-```
+Infrastructure is defined in `render.yaml` (Blueprint). Push to GitHub and deploy via Render dashboard → Blueprints → New Blueprint Instance.
 
-**Note**: Backend Dockerfile hardcodes port 8080 (for Railway). docker-compose maps `8000:8080` for local dev. For development, use uvicorn directly (not Docker) on port 8000.
+- **Backend**: Python 3.12 native runtime. Render provides `PORT` env var. Start command transforms Render's `postgres://` URL to `postgresql+asyncpg://` format.
+- **Frontend**: Static site. Build command generates `public/env-config.js` with `API_URL` before Angular build. SPA routing handled by Render rewrite rules.
+- **Database**: Render managed PostgreSQL 16. Pre-deploy command runs `python -m app.seeds.run_seed`.
+- **Env vars marked `sync: false`** must be set manually in Render dashboard after first deploy: `CORS_ORIGINS`, `FRONTEND_URL`, `API_URL`, API keys, OAuth secrets.
+
+**Note**: Ollama (local LLM) does not work on Render — use a cloud provider (Groq, Together AI, etc.).
 
 **Note**: Google Fonts CSS2 API — use simple weight syntax (`DM+Sans:wght@300;400;500;600;700`), not variable font axis syntax (`ital,opsz,wght@...`) which returns 400 errors during Angular font inlining.
 
@@ -158,7 +157,7 @@ docker-compose up -d                    # Start full stack
 - CSS custom properties (design tokens in `styles.scss`) for theming; inline SCSS for component styles
 - Fonts: DM Sans (body) + Playfair Display (headings) loaded via Google Fonts in `index.html`
 - Models defined as TypeScript interfaces in `shared/models/`
-- API base URL: reads `window.__env.API_URL` (Docker) with fallback to `http://localhost:8000/api`
+- API base URL: reads `window.__env.API_URL` (set at build time on Render, or via `public/env-config.js` locally) with fallback to `/api` (proxied to localhost:8000 in dev via `proxy.conf.json`)
 - Route auth: browse, setup, downloads are public; dashboard and settings require `authGuard`; modlist generation checks auth in `playstyle-select` component and redirects to register
 
 ## API Endpoints
@@ -193,7 +192,8 @@ docker-compose up -d                    # Start full stack
 GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to main:
 - Backend: ruff lint (hard-fail), mypy type check (continue-on-error), pytest (soft-fail)
 - Frontend: ng lint (continue-on-error), production build
-- Docker: Compose config validation (push to main only)
+
+Render auto-deploys from `main` branch on push. Blueprint (`render.yaml`) defines all services.
 
 Community files: `.github/CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/` (bug_report, feature_request)
 
