@@ -1,0 +1,77 @@
+databases:
+  - name: moddersomni-db
+    plan: starter
+    databaseName: modify
+    user: modify
+    postgresMajorVersion: 16
+    ipAllowList: [] # Only internal access
+
+services:
+  # ── Backend (Python 3) ──────────────────────────────────
+  - type: web
+    name: moddersomni-api
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: "sh -c 'export DATABASE_URL=$(echo $DATABASE_URL_RAW | sed s/^postgres:/postgresql+asyncpg:/ | sed s/^postgresql:/postgresql+asyncpg:/) && uvicorn app.main:app --host 0.0.0.0 --port $PORT'"
+    preDeployCommand: "sh -c 'export DATABASE_URL=$(echo $DATABASE_URL_RAW | sed s/^postgres:/postgresql+asyncpg:/ | sed s/^postgresql:/postgresql+asyncpg:/) && python -m app.seeds.run_seed'"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL_RAW
+        fromDatabase:
+          name: moddersomni-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false # Set after deploy: https://moddersomni-web.onrender.com
+      - key: FRONTEND_URL
+        sync: false # Set after deploy: https://moddersomni-web.onrender.com
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NEXUS_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+
+  # ── Frontend (Static Site) ──────────────────────────────
+  - type: web
+    name: moddersomni-web
+    runtime: static
+    plan: starter
+    rootDir: frontend
+    buildCommand: "echo \"(function(window) { window.__env = { API_URL: '$API_URL' }; })(window);\" > public/env-config.js && npm ci && npx ng build --configuration=production"
+    staticPublishPath: dist/frontend/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: API_URL
+        sync: false # Set after deploy: https://moddersomni-api.onrender.com/api

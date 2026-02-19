@@ -54,6 +54,10 @@ tmp/
 # Claude Code
 .claude/
 .claude.local.md
+memory/
+
+# Linting cache
+.ruff_cache/
 
 # OS
 .DS_Store
