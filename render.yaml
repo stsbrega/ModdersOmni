@@ -1,6 +1,6 @@
 databases:
   - name: moddersomni-db
-    plan: starter
+    plan: free
     databaseName: modify
     user: modify
     postgresMajorVersion: 16
@@ -11,7 +11,7 @@ services:
   - type: web
     name: moddersomni-api
     runtime: python
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: "sh -c 'export DATABASE_URL=$(echo $DATABASE_URL_RAW | sed s/^postgres:/postgresql+asyncpg:/ | sed s/^postgresql:/postgresql+asyncpg:/) && uvicorn app.main:app --host 0.0.0.0 --port $PORT'"
@@ -60,7 +60,7 @@ services:
   - type: web
     name: moddersomni-web
     runtime: static
-    plan: starter
+    plan: free
     rootDir: frontend
     buildCommand: "echo \"(function(window) { window.__env = { API_URL: '$API_URL' }; })(window);\" > public/env-config.js && npm ci && npx ng build --configuration=production"
     staticPublishPath: dist/frontend/browser
