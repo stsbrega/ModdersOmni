@@ -1,6 +1,6 @@
 databases:
   - name: moddersomni-db
-    plan: starter
+    plan: basic-256mb
     databaseName: moddersomni
     user: omni
     postgresMajorVersion: 16
