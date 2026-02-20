@@ -1,4 +1,4 @@
-# ModdersOmni — Product Roadmap
+# ModdersOmni — What Shall Come to Pass
 
 > **Format**: Now / Next / Later
 > **Last updated**: February 20, 2026
@@ -20,9 +20,9 @@ _Goal: Get the end-to-end mod generation and download flow working reliably, wit
 
 | # | Item | Description | Status | Dependencies | Notes |
 |---|------|-------------|--------|--------------|-------|
-| 1 | **Game Version–Aware Mod Selection** | Version fields on Game/Mod models, SE/AE and Standard/Next-Gen filtering, version-aware LLM prompts, frontend version selection step | **Completed** | None | PLAN.md §1. Models, schemas, seed data, version filtering, and frontend version selector all implemented |
-| 2 | **Multi-Factor Hardware Tier Classifier** | Scored system (GPU gen + VRAM + CPU + RAM) in `tier_classifier.py`. Integrated with spec parser, API responses, and frontend tier badge with score breakdown | **Completed** | None | PLAN.md §2. Full 168-line service with GPU generation database (NVIDIA/AMD/Intel). Frontend shows per-dimension scores |
-| 3 | **Gaming-Themed UI Redesign** | Dynamic Skyrim/Fallout themes, gaming typography, immersive copy ("Forge Modlist", "Your Loadout"), gradient game cards, tier badge display | **In Progress** | Items 1–2 (version cards, tier badge) | PLAN.md §3. Done: theme service, gaming terminology (Loadout, Deploy, Forge, Scan Hardware), tier badge. Remaining: `styles.scss` theme CSS variables, Rajdhani font, dashboard hero copy, full header nav gaming terms |
+| 1 | **Game Version–Aware Mod Selection** | Version fields on Game/Mod models, SE/AE and Standard/Next-Gen filtering, version-aware LLM prompts, frontend version selection step | **Completed** | None | WAS.md §1. Models, schemas, seed data, version filtering, and frontend version selector all implemented |
+| 2 | **Multi-Factor Hardware Tier Classifier** | Scored system (GPU gen + VRAM + CPU + RAM) in `tier_classifier.py`. Integrated with spec parser, API responses, and frontend tier badge with score breakdown | **Completed** | None | WAS.md §2. Full 168-line service with GPU generation database (NVIDIA/AMD/Intel). Frontend shows per-dimension scores |
+| 3 | **Gaming-Themed UI Redesign** | Dynamic Skyrim/Fallout themes, gaming typography, immersive copy ("Forge Modlist", "Your Loadout"), gradient game cards, tier badge display | **In Progress** | Items 1–2 (version cards, tier badge) | WAS.md §3. Done: theme service, gaming terminology (Loadout, Deploy, Forge, Scan Hardware), tier badge. Remaining: `styles.scss` theme CSS variables, Rajdhani font, dashboard hero copy, full header nav gaming terms |
 | 4 | **Alembic Migration Setup** | Replace `create_all` with proper Alembic migrations for all model changes (versions, game_version_support, etc.) | **Not Started** | Item 1 (model changes) | Currently seed script uses `create_all`. Need migration history before any production deploy. Pre-deploy command in `render.yaml` runs seed script on each deploy. |
 | 5 | **Test Coverage Expansion** | Add tests for tier classifier, version-filtered mod selection, spec parser CPU parsing, and API endpoint integration tests | **Not Started** | Items 1–2 | Only `test_health.py`, `test_spec_parser.py`, and `test_oauth.py` exist today. CI runs pytest with continue-on-error |
 
@@ -38,7 +38,7 @@ _Goal: Make the app feel solid and trustworthy. Improve error handling, onboardi
 | 7 | **Onboarding & Empty States** | First-run tutorial, contextual tooltips for spec input, empty state designs for modlist/downloads pages, loading skeletons | **Not Started** | Item 3 (UI redesign) | Users need guidance — spec input is the biggest friction point |
 | 8 | **LLM Provider Flexibility** | Settings UI for switching between Ollama (local), Groq, Together AI, HuggingFace. Test and document each provider's behavior. Add model selection dropdown | **Not Started** | None | Backend supports OpenAI-compatible client; frontend settings page exists but needs provider config UI |
 | 9 | **Nexus Mods Integration Polish** | Rate limiting, caching, error handling for GraphQL API. Show real mod thumbnails, descriptions, and endorsement counts from Nexus in the modlist view | **Not Started** | NOW items complete | `nexus_client.py` exists. Currently mod data is mostly from seed DB |
-| 10 | **CI/CD Hardening** | Remove `continue-on-error` from CI jobs, add frontend unit tests to pipeline, set up Render preview environments for PRs | **Not Started** | Item 5 (tests) | CI exists but most checks are soft-fail. Docker build validation removed from CI — no longer using Docker. |
+| 10 | **CI/CD Hardening** | Remove `continue-on-error` from CI jobs, add frontend unit tests to pipeline, set up Render preview environments for PRs | **Not Started** | Item 5 (tests) | CI runs on push/PR to main. Backend: ruff lint (hard-fail), mypy (continue-on-error), pytest (hard-fail; "no tests found" suppressed). Frontend: ng lint (continue-on-error), production build (hard-fail). Docker build validation removed — no longer using Docker. |
 
 ---
 
@@ -80,10 +80,10 @@ _Goal: Broaden game support, add community features, and build toward a user bas
 
 | # | Item | Description | Completed | Notes |
 |---|------|-------------|-----------|-------|
-| 1 | **Game Version–Aware Mod Selection** | Version fields on Game/Mod models, SE/AE and Standard/Next-Gen filtering, version-aware LLM prompts, frontend version selection step | 2026-02-20 | PLAN.md §1. Models (`game.py`, `mod.py`), schemas, seed data, `_is_version_compatible` filter, and frontend version selector in `setup.component.ts` |
-| 2 | **Multi-Factor Hardware Tier Classifier** | 4-dimension scoring (VRAM, GPU gen, CPU, RAM) in `tier_classifier.py`. Integrated with spec parser, API, and frontend tier badge with per-dimension score breakdown | 2026-02-20 | PLAN.md §2. 168-line service with NVIDIA/AMD/Intel GPU generation database. Frontend scores in `spec-input.component.ts` |
+| 1 | **Game Version–Aware Mod Selection** | Version fields on Game/Mod models, SE/AE and Standard/Next-Gen filtering, version-aware LLM prompts, frontend version selection step | 2026-02-20 | WAS.md §1. Models (`game.py`, `mod.py`), schemas, seed data, `_is_version_compatible` filter, and frontend version selector in `setup.component.ts` |
+| 2 | **Multi-Factor Hardware Tier Classifier** | 4-dimension scoring (VRAM, GPU gen, CPU, RAM) in `tier_classifier.py`. Integrated with spec parser, API, and frontend tier badge with per-dimension score breakdown | 2026-02-20 | WAS.md §2. 168-line service with NVIDIA/AMD/Intel GPU generation database. Frontend scores in `spec-input.component.ts` |
 | 12 | **User Accounts & Saved Mod Lists** | JWT + refresh tokens, registration, login, email verification, password reset/change, OAuth (Google/Discord), user profiles, hardware specs storage, per-user settings, `GET /modlist/mine` | 2026-02-20 | Full auth backend (`api/auth.py`, 587 lines) + frontend auth flows (login, register, verify-email, forgot/reset-password, OAuth callback) |
-| — | **Railway → Render Migration** | Migrated all three services (frontend, backend, PostgreSQL) from Railway to Render. Removed Docker/nginx complexity. Backend runs on native Python 3.12 runtime. Frontend deployed as static site with build-time env injection. Infrastructure defined in `render.yaml` blueprint. | 2026-02-19 | See PLAN.md §4. Removed: `docker-compose.yml`, `backend/Dockerfile`, `backend/.dockerignore`, `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/docker-entrypoint.sh` |
+| — | **Railway → Render Migration** | Migrated all three services (frontend, backend, PostgreSQL) from Railway to Render. Removed Docker/nginx complexity. Backend runs on native Python 3.12 runtime. Frontend deployed as static site with build-time env injection. Infrastructure defined in `render.yaml` blueprint. Deterministic env vars (URLs, redirect URIs, SMTP host) hardcoded in `render.yaml` for auto-fill on deploy; API keys and OAuth secrets are `sync: false` (set manually). Database on free tier. Refresh cookie `secure=True` for production HTTPS. | 2026-02-19 | See WAS.md §4. Removed: `docker-compose.yml`, `backend/Dockerfile`, `backend/.dockerignore`, `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/docker-entrypoint.sh` |
 
 ---
 
@@ -91,6 +91,7 @@ _Goal: Broaden game support, add community features, and build toward a user bas
 
 | Date | Change |
 |------|--------|
+| 2026-02-20 | Reconciled with CLAUDE.md: Updated Render migration entry with hardcoded env vars, free DB tier, secure cookie. Updated CI/CD item description with precise hard-fail vs continue-on-error breakdown. Updated WAS.md §4 env vars to match CLAUDE.md's hardcoded vs manual list. |
 | 2026-02-20 | Audit: Marked Items 1, 2, 12 as completed. Updated branding from "Modify" to "ModdersOmni". Updated status counts and dependency notes. |
-| 2026-02-19 | Migrated deployment from Railway to Render. Removed Docker files. Added `render.yaml` blueprint. Updated PLAN.md §4. |
+| 2026-02-19 | Migrated deployment from Railway to Render. Removed Docker files. Added `render.yaml` blueprint. Updated WAS.md §4. |
 | 2026-02-17 | Initial roadmap created. 14 items across Now/Next/Later. |
