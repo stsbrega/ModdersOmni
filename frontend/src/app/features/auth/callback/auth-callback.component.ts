@@ -5,15 +5,15 @@ import { AuthService } from '../../../core/services/auth.service';
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
-  template: \`
+  template: `
     <div class="callback-page">
       <div class="callback-card">
         <div class="spinner"></div>
         <p>{{ message }}</p>
       </div>
     </div>
-  \`,
-  styles: [\`
+  `,
+  styles: [`
     :host { display: block; }
 
     .callback-page {
@@ -43,7 +43,7 @@ import { AuthService } from '../../../core/services/auth.service';
       color: var(--color-text-muted);
       font-size: 0.875rem;
     }
-  \`],
+  `],
 })
 export class AuthCallbackComponent implements OnInit {
   message = 'Signing you in...';
