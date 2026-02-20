@@ -5,15 +5,15 @@ import { AuthService } from '../../../core/services/auth.service';
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
-  template: `
+  template: \`
     <div class="callback-page">
       <div class="callback-card">
         <div class="spinner"></div>
         <p>{{ message }}</p>
       </div>
     </div>
-  `,
-  styles: [`
+  \`,
+  styles: [\`
     :host { display: block; }
 
     .callback-page {
@@ -43,7 +43,7 @@ import { AuthService } from '../../../core/services/auth.service';
       color: var(--color-text-muted);
       font-size: 0.875rem;
     }
-  `],
+  \`],
 })
 export class AuthCallbackComponent implements OnInit {
   message = 'Signing you in...';
@@ -82,7 +82,12 @@ export class AuthCallbackComponent implements OnInit {
     }
 
     this.authService.setAccessToken(token);
-    this.authService.loadProfile();
-    this.router.navigateByUrl('/dashboard');
+    this.authService.loadProfileAsync().subscribe({
+      next: () => this.router.navigateByUrl('/dashboard'),
+      error: () => {
+        this.message = 'Sign-in failed. Redirecting...';
+        setTimeout(() => this.router.navigateByUrl('/auth/login'), 2000);
+      },
+    });
   }
 }
