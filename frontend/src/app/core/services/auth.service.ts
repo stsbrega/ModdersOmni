@@ -9,6 +9,7 @@ import {
   LoginRequest,
   UserHardware,
   HardwareUpdateRequest,
+  OAuthProviderInfo,
 } from '../../shared/models/auth.model';
 
 const TOKEN_KEY = 'access_token';
@@ -143,7 +144,18 @@ export class AuthService {
         next: (res) => {
           window.location.href = res.authorization_url;
         },
+        error: () => {}, // Notification already shown by errorInterceptor
       });
+  }
+
+  // --- Connected Accounts ---
+
+  getConnectedAccounts(): Observable<OAuthProviderInfo[]> {
+    return this.http.get<OAuthProviderInfo[]>(`${this.baseUrl}/auth/me/connected-accounts`);
+  }
+
+  disconnectAccount(provider: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/auth/me/connected-accounts/${provider}`);
   }
 
   // --- Email Verification ---

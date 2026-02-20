@@ -3,18 +3,21 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
+from app.models.user_oauth_provider import UserOAuthProvider
 from app.models.user_settings import UserSettings
 from app.schemas.auth import (
     ForgotPasswordRequest,
     HardwareResponse,
     HardwareUpdate,
     LoginRequest,
+    OAuthProviderInfo,
     PasswordChangeRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -84,6 +87,10 @@ def _build_user_response(user: User) -> UserResponse:
             hardware_tier=user.hardware_tier,
             hardware_raw_text=user.hardware_raw_text,
         )
+    connected = [
+        OAuthProviderInfo(provider=op.provider, connected_at=op.connected_at)
+        for op in user.oauth_providers
+    ]
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -91,6 +98,7 @@ def _build_user_response(user: User) -> UserResponse:
         display_name=user.display_name,
         avatar_url=user.avatar_url,
         auth_provider=user.auth_provider,
+        connected_providers=connected,
         hardware=hardware,
     )
 
@@ -501,60 +509,61 @@ async def oauth_authorize(provider: str):
 @router.get("/oauth/{provider}/callback")
 async def oauth_callback(
     provider: str,
-    code: str,
+    code: str | None = None,
     state: str | None = None,
+    error: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Handle OAuth callback: exchange code, create/link account, redirect to frontend."""
     settings = get_settings()
+
+    def _error_redirect(error_code: str) -> RedirectResponse:
+        """Redirect to frontend callback with an error query parameter."""
+        url = f"{settings.frontend_url}/auth/callback?error={error_code}"
+        return RedirectResponse(url=url)
+
+    # Google/Discord may redirect with ?error=... when user denies consent
+    if error:
+        logger.warning(f"OAuth {provider} callback received error: {error}")
+        return _error_redirect(error)
+
+    if not code:
+        return _error_redirect("missing_code")
+
     oauth = get_oauth_provider(provider)
     if oauth is None or not oauth.is_configured():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"OAuth provider '{provider}' not available",
-        )
+        return _error_redirect("provider_unavailable")
 
     # Validate state to prevent CSRF
     if not state or not validate_oauth_state(state, provider):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OAuth state",
-        )
+        return _error_redirect("invalid_state")
 
     try:
         user_info = await oauth.get_user_info(code)
     except Exception:
         logger.exception(f"OAuth {provider} token exchange failed")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OAuth authentication failed",
-        )
+        return _error_redirect("exchange_failed")
 
-    # Check if user with this OAuth ID already exists
+    # Check junction table for existing provider link
     result = await db.execute(
-        select(User).where(
-            User.auth_provider == user_info.provider,
-            User.oauth_provider_id == user_info.provider_user_id,
+        select(UserOAuthProvider).where(
+            UserOAuthProvider.provider == user_info.provider,
+            UserOAuthProvider.provider_user_id == user_info.provider_user_id,
         )
     )
-    user = result.scalar_one_or_none()
+    link = result.scalar_one_or_none()
 
-    if user is None:
-        # Check if email already exists (link accounts)
+    if link:
+        # Existing linked user — sign in
+        user = await db.get(User, link.user_id)
+    else:
+        # Check if email already exists (link provider to existing account)
         result = await db.execute(
             select(User).where(User.email == user_info.email)
         )
         user = result.scalar_one_or_none()
 
-        if user:
-            # Link OAuth to existing account
-            user.auth_provider = user_info.provider
-            user.oauth_provider_id = user_info.provider_user_id
-            if user_info.email_verified:
-                user.email_verified = True
-            if user_info.avatar_url and not user.avatar_url:
-                user.avatar_url = user_info.avatar_url
-        else:
+        if user is None:
             # Create new user
             user = User(
                 email=user_info.email,
@@ -562,7 +571,6 @@ async def oauth_callback(
                 display_name=user_info.display_name,
                 avatar_url=user_info.avatar_url,
                 auth_provider=user_info.provider,
-                oauth_provider_id=user_info.provider_user_id,
             )
             db.add(user)
             await db.flush()
@@ -570,6 +578,20 @@ async def oauth_callback(
             # Create default settings
             settings_row = UserSettings(user_id=user.id)
             db.add(settings_row)
+        else:
+            # Update profile from provider if needed
+            if user_info.email_verified:
+                user.email_verified = True
+            if user_info.avatar_url and not user.avatar_url:
+                user.avatar_url = user_info.avatar_url
+
+        # Add provider link to junction table
+        oauth_link = UserOAuthProvider(
+            user_id=user.id,
+            provider=user_info.provider,
+            provider_user_id=user_info.provider_user_id,
+        )
+        db.add(oauth_link)
 
     # Issue tokens
     access_token, expires_in = create_access_token(
@@ -579,9 +601,60 @@ async def oauth_callback(
     await db.commit()
 
     # Redirect to frontend with access token
-    from fastapi.responses import RedirectResponse
-
     redirect_url = f"{settings.frontend_url}/auth/callback?token={access_token}"
     redirect_response = RedirectResponse(url=redirect_url)
     _set_refresh_cookie(redirect_response, refresh_raw)
     return redirect_response
+
+
+# ---------------------------------------------------------------------------
+# Connected Accounts
+# ---------------------------------------------------------------------------
+
+
+@router.get("/me/connected-accounts", response_model=list[OAuthProviderInfo])
+async def get_connected_accounts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(UserOAuthProvider).where(UserOAuthProvider.user_id == user.id)
+    )
+    links = result.scalars().all()
+    return [
+        OAuthProviderInfo(provider=link.provider, connected_at=link.connected_at)
+        for link in links
+    ]
+
+
+@router.delete("/me/connected-accounts/{provider}")
+async def disconnect_account(
+    provider: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Prevent lockout: must have password OR another provider remaining
+    result = await db.execute(
+        select(UserOAuthProvider).where(UserOAuthProvider.user_id == user.id)
+    )
+    links = result.scalars().all()
+    target = next((lnk for lnk in links if lnk.provider == provider), None)
+
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Provider '{provider}' is not connected",
+        )
+
+    has_password = user.password_hash is not None
+    other_providers = [lnk for lnk in links if lnk.provider != provider]
+
+    if not has_password and not other_providers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot disconnect your only sign-in method. Set a password first.",
+        )
+
+    await db.delete(target)
+    await db.commit()
+    return {"status": "ok", "message": f"{provider} disconnected"}

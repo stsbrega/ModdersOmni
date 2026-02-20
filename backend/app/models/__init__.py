@@ -6,6 +6,7 @@ from app.models.modlist import Modlist, ModlistEntry
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.user import User
 from app.models.user_settings import UserSettings
+from app.models.user_oauth_provider import UserOAuthProvider
 from app.models.refresh_token import RefreshToken
 from app.models.email_verification import EmailVerification
 
@@ -19,6 +20,7 @@ __all__ = [
     "PlaystyleMod",
     "User",
     "UserSettings",
+    "UserOAuthProvider",
     "RefreshToken",
     "EmailVerification",
 ]

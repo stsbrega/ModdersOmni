@@ -54,8 +54,26 @@ export class AuthCallbackComponent implements OnInit {
     private authService: AuthService,
   ) {}
 
+  private static readonly ERROR_MESSAGES: Record<string, string> = {
+    access_denied: 'You declined the sign-in request.',
+    invalid_state: 'Session expired. Please try again.',
+    exchange_failed: 'Authentication failed. Please try again.',
+    provider_unavailable: 'This sign-in method is not available.',
+    missing_code: 'Invalid callback from provider.',
+  };
+
   ngOnInit(): void {
-    const token = this.route.snapshot.queryParams['token'];
+    const params = this.route.snapshot.queryParams;
+    const error = params['error'];
+    const token = params['token'];
+
+    if (error) {
+      this.message =
+        AuthCallbackComponent.ERROR_MESSAGES[error] ??
+        'Sign-in failed. Redirecting...';
+      setTimeout(() => this.router.navigateByUrl('/auth/login'), 3000);
+      return;
+    }
 
     if (!token) {
       this.message = 'Invalid callback. Redirecting...';

@@ -45,3 +45,6 @@ class User(Base):
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )
+    oauth_providers: Mapped[list["UserOAuthProvider"]] = relationship(  # noqa: F821
+        back_populates="user", cascade="all, delete-orphan"
+    )

@@ -230,7 +230,7 @@ This section documents the Google OAuth 2.0 Authorization Code flow as implement
 | Authorization | `https://accounts.google.com/o/oauth2/v2/auth` |
 | Token exchange | `https://oauth2.googleapis.com/token` |
 | User info | `https://www.googleapis.com/oauth2/v3/userinfo` |
-| Token revocation | `https://oauth2.googleapis.com/revoke` |
+| Token revocation | `https://oauth2.googleapis.com/revoke` (not used — we don't store Google tokens) |
 
 ### Authorization Request Parameters
 

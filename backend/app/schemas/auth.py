@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -20,6 +21,13 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class OAuthProviderInfo(BaseModel):
+    provider: str
+    connected_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
@@ -27,6 +35,7 @@ class UserResponse(BaseModel):
     display_name: str | None = None
     avatar_url: str | None = None
     auth_provider: str
+    connected_providers: list[OAuthProviderInfo] = []
     hardware: "HardwareResponse | None" = None
 
     model_config = {"from_attributes": True}

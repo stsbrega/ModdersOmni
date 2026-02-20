@@ -67,6 +67,36 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                 </div>
               }
               <div class="panel-section">
+                <h3>Connected Accounts</h3>
+                <p class="input-hint" style="margin-bottom: 0.75rem;">Link additional sign-in methods to your account.</p>
+                <div class="connected-list">
+                  @for (p of availableProviders; track p.id) {
+                    <div class="connected-item">
+                      <div class="connected-info">
+                        <span class="provider-name">{{ p.label }}</span>
+                        @if (isProviderConnected(p.id)) {
+                          <span class="connected-badge">Connected</span>
+                        }
+                      </div>
+                      @if (isProviderConnected(p.id)) {
+                        <button
+                          class="btn-disconnect"
+                          (click)="disconnectProvider(p.id)"
+                          [disabled]="!canDisconnect()"
+                          [title]="canDisconnect() ? 'Disconnect ' + p.label : 'Set a password before disconnecting your only sign-in method'"
+                        >
+                          Disconnect
+                        </button>
+                      } @else {
+                        <button class="btn-connect" (click)="connectProvider(p.id)">
+                          Connect
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="panel-section">
                 <h3>Nexus Mods API Key</h3>
                 <input type="password" class="input" [(ngModel)]="nexusApiKey" placeholder="Enter your Nexus Mods API key">
                 <p class="input-hint">Required for mod downloads. Get your key from Nexus Mods account settings.</p>
@@ -468,6 +498,70 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
     }
     .btn-verify:hover { background: var(--color-gold-hover); }
 
+    /* Connected Accounts */
+    .connected-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .connected-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.625rem 0.875rem;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+    }
+    .connected-info {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+    }
+    .provider-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .connected-badge {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: #22c55e;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      padding: 0.125rem 0.5rem;
+      border-radius: 100px;
+    }
+    .btn-connect {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      padding: 0.375rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn-connect:hover {
+      border-color: var(--color-gold);
+      background: rgba(192, 160, 96, 0.08);
+      color: var(--color-gold);
+    }
+    .btn-disconnect {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+      padding: 0.375rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-disconnect:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: #ef4444;
+    }
+    .btn-disconnect:disabled { opacity: 0.35; cursor: not-allowed; }
+
     /* Tier Badge */
     .tier-badge-row {
       display: flex;
@@ -653,6 +747,12 @@ export class SettingsComponent implements OnInit {
   displayName = '';
   email = '';
   emailVerified = false;
+  hasPassword = false;
+  connectedProviders = signal<string[]>([]);
+  availableProviders = [
+    { id: 'google' as const, label: 'Google' },
+    { id: 'discord' as const, label: 'Discord' },
+  ];
   nexusApiKey = '';
   llmProvider = 'ollama';
   ollamaBaseUrl = 'http://localhost:11434/v1';
@@ -697,6 +797,7 @@ export class SettingsComponent implements OnInit {
     this.loadProfile();
     this.loadSettings();
     this.loadHardware();
+    this.loadConnectedAccounts();
   }
 
   toggleGame(game: string): void {
@@ -746,6 +847,7 @@ export class SettingsComponent implements OnInit {
       this.displayName = user.display_name || '';
       this.email = user.email;
       this.emailVerified = user.email_verified;
+      this.hasPassword = user.auth_provider === 'local';
     }
   }
 
@@ -778,6 +880,41 @@ export class SettingsComponent implements OnInit {
         this.customSourceUrl = settings.custom_source_api_url || '';
       },
       error: () => {},
+    });
+  }
+
+  private loadConnectedAccounts(): void {
+    this.authService.getConnectedAccounts().subscribe({
+      next: (accounts) => {
+        this.connectedProviders.set(accounts.map((a) => a.provider));
+      },
+      error: () => {},
+    });
+  }
+
+  isProviderConnected(providerId: string): boolean {
+    return this.connectedProviders().includes(providerId);
+  }
+
+  canDisconnect(): boolean {
+    return this.hasPassword || this.connectedProviders().length > 1;
+  }
+
+  connectProvider(providerId: 'google' | 'discord'): void {
+    this.authService.oauthLogin(providerId);
+  }
+
+  disconnectProvider(providerId: string): void {
+    this.authService.disconnectAccount(providerId).subscribe({
+      next: () => {
+        this.connectedProviders.update((providers) =>
+          providers.filter((p) => p !== providerId),
+        );
+        this.notifications.success(`${providerId.charAt(0).toUpperCase() + providerId.slice(1)} disconnected`);
+      },
+      error: () => {
+        this.notifications.error('Failed to disconnect account');
+      },
     });
   }
 

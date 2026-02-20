@@ -9,6 +9,11 @@ export interface UserHardware {
   hardware_raw_text?: string;
 }
 
+export interface OAuthProviderInfo {
+  provider: string;
+  connected_at: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -16,6 +21,7 @@ export interface User {
   display_name?: string;
   avatar_url?: string;
   auth_provider: 'local' | 'google' | 'discord';
+  connected_providers?: OAuthProviderInfo[];
   hardware?: UserHardware;
 }
 
