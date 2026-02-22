@@ -82,7 +82,12 @@ export class AuthCallbackComponent implements OnInit {
     }
 
     this.authService.setAccessToken(token);
-    this.authService.loadProfile();
-    this.router.navigateByUrl('/dashboard');
+    this.authService.loadProfileAsync().subscribe({
+      next: () => this.router.navigateByUrl('/dashboard'),
+      error: () => {
+        this.message = 'Sign-in failed. Redirecting...';
+        setTimeout(() => this.router.navigateByUrl('/auth/login'), 2000);
+      },
+    });
   }
 }
