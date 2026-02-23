@@ -497,11 +497,20 @@ export class DownloadsComponent implements OnInit, OnDestroy {
     }
   }
 
+  private getWsBaseUrl(): string {
+    const apiUrl: string = (window as any).__env?.API_URL || '/api';
+    if (apiUrl.startsWith('/')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}${apiUrl}`;
+    }
+    return apiUrl.replace(/^http/, 'ws');
+  }
+
   private connectWebSocket(): void {
     if (!this.modlistId) return;
 
     try {
-      this.ws = new WebSocket(`ws://localhost:8000/api/downloads/${this.modlistId}/ws`);
+      this.ws = new WebSocket(`${this.getWsBaseUrl()}/downloads/${this.modlistId}/ws`);
 
       this.ws.onopen = () => {
         this.isLive.set(true);
