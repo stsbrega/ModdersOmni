@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.user import User
-from app.models.user_oauth_provider import UserOAuthProvider
 from app.services.auth import decode_access_token
 
 security = HTTPBearer(auto_error=True)
