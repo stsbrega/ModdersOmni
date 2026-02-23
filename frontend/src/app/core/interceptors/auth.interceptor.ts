@@ -29,7 +29,12 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 && !isAuthEndpoint && !isRefreshing) {
+      // 401 = expired/invalid token
+      // 403 with no token = missing Authorization header (HTTPBearer auto_error)
+      const shouldRefresh =
+        error.status === 401 ||
+        (error.status === 403 && !authService.getAccessToken());
+      if (shouldRefresh && !isAuthEndpoint && !isRefreshing) {
         isRefreshing = true;
         return authService.refreshToken().pipe(
           switchMap((res) => {

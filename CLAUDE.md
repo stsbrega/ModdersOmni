@@ -130,9 +130,10 @@ npm test                                # Run Karma/Jasmine tests
 ### Deployment (Render)
 
 #### Production URLs
-- **Frontend**: `https://moddersomni-web.onrender.com`
-- **Backend API**: `https://moddersomni-api.onrender.com/api`
-- **OAuth callbacks**: `https://moddersomni-api.onrender.com/api/auth/oauth/{provider}/callback`
+- **Frontend (custom domain)**: `https://moddersomni.com`
+- **Frontend (Render)**: `https://moddersomni-web-p8e5.onrender.com`
+- **Backend API**: `https://moddersomni-api-gycc.onrender.com/api`
+- **OAuth callbacks**: `https://moddersomni-api-gycc.onrender.com/api/auth/oauth/{provider}/callback`
 
 Infrastructure is defined in `render.yaml` (Blueprint). Push to GitHub and deploy via Render dashboard → Blueprints → New Blueprint Instance.
 
@@ -267,7 +268,7 @@ Successful response returns `{ access_token, expires_in, token_type, scope }` (p
 | Environment | Redirect URI | Set In |
 |-------------|-------------|--------|
 | Local dev | `http://localhost:8000/api/auth/oauth/google/callback` | `config.py` default |
-| Production | `https://moddersomni-api.onrender.com/api/auth/oauth/google/callback` | `render.yaml` (`GOOGLE_REDIRECT_URI`) |
+| Production | `https://moddersomni-api-gycc.onrender.com/api/auth/oauth/google/callback` | `render.yaml` (`GOOGLE_REDIRECT_URI`) |
 
 **Both** URIs must be registered as authorized redirect URIs in the [Google Cloud Console → Clients page](https://console.developers.google.com/auth/clients).
 
