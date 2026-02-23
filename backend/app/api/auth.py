@@ -71,7 +71,9 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(key=REFRESH_COOKIE, path="/api/auth")
+    response.delete_cookie(
+        key=REFRESH_COOKIE, path="/api/auth", samesite="none", secure=True,
+    )
 
 
 def _build_user_response(user: User) -> UserResponse:

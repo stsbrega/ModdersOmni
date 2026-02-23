@@ -34,7 +34,10 @@ async def get_current_user(
     result = await db.execute(
         select(User)
         .where(User.id == user_id)
-        .options(selectinload(User.oauth_providers))
+        .options(
+            selectinload(User.oauth_providers),
+            selectinload(User.settings),
+        )
     )
     user = result.scalar_one_or_none()
     if user is None:
@@ -62,7 +65,10 @@ async def get_current_user_optional(
     result = await db.execute(
         select(User)
         .where(User.id == user_id)
-        .options(selectinload(User.oauth_providers))
+        .options(
+            selectinload(User.oauth_providers),
+            selectinload(User.settings),
+        )
     )
     return result.scalar_one_or_none()
 
