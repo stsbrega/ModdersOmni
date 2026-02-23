@@ -19,99 +19,178 @@ import { trigger, transition, style, animate } from '@angular/animations';
   ],
   template: `
     <div class="spec-input">
-      <h2>Enter Your Hardware</h2>
+      <h2>{{ usingSavedHardware() ? 'Verify Your Hardware' : 'Enter Your Hardware' }}</h2>
       <p class="step-desc">
-        Paste your system info from NVIDIA App, HWiNFO, or Task Manager.
+        {{ usingSavedHardware()
+          ? 'Confirm your hardware profile from Settings, or enter different specs.'
+          : 'Paste your system info from NVIDIA App, HWiNFO, or Task Manager.' }}
       </p>
 
-      @if (usingSavedHardware()) {
-        <div class="saved-banner">
-          <div class="saved-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span>Using your saved hardware profile</span>
+      @if (usingSavedHardware() && !showManualEntry()) {
+        <!-- Saved hardware verify mode -->
+        @if (savedLoading()) {
+          <div class="loading-card">
+            <span class="btn-spinner lg"></span>
+            <span>Loading hardware profile...</span>
           </div>
-          <button class="btn-different" (click)="clearSavedHardware()">Use different specs</button>
-        </div>
-      }
+        }
 
-      <div class="textarea-wrap">
-        <textarea
-          [(ngModel)]="rawText"
-          placeholder="Example:
+        @if (fullResponse()) {
+          <div class="results" @fadeIn>
+            <div class="tier-row">
+              <span class="tier-badge" [class]="'tier-' + (fullResponse()?.tier || 'unknown').toLowerCase()">
+                {{ fullResponse()?.tier || 'UNKNOWN' }} TIER
+              </span>
+            </div>
+
+            <div class="specs-grid">
+              <div class="spec-item">
+                <span class="spec-label">GPU</span>
+                <span class="spec-val">{{ fullResponse()!.specs.gpu || 'Not set' }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">VRAM</span>
+                <span class="spec-val">{{ formatVram(fullResponse()!.specs.vram_mb) }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">CPU</span>
+                <span class="spec-val">{{ fullResponse()!.specs.cpu || 'Not set' }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">RAM</span>
+                <span class="spec-val">{{ fullResponse()!.specs.ram_gb ? fullResponse()!.specs.ram_gb + ' GB' : 'Not set' }}</span>
+              </div>
+            </div>
+
+            @if (fullResponse()?.tier_scores) {
+              <div class="scores">
+                <h4>Performance Breakdown</h4>
+                <div class="score-list">
+                  <div class="score-row">
+                    <span class="score-name">VRAM</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.vram || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.vram) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">GPU Gen</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.gpu_gen || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.gpu_gen) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">CPU</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.cpu || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.cpu) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">RAM</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.ram || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.ram) }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <button class="btn-different" (click)="switchToManualEntry()">
+          Enter different specs instead
+        </button>
+      } @else {
+        <!-- Manual entry mode -->
+        @if (usingSavedHardware()) {
+          <button class="btn-back-to-saved" (click)="switchToSavedHardware()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to saved hardware
+          </button>
+        }
+
+        <div class="textarea-wrap">
+          <textarea
+            [(ngModel)]="rawText"
+            placeholder="Example:
 GPU: NVIDIA GeForce RTX 4070 Ti
 VRAM: 12 GB GDDR6X
 CPU: AMD Ryzen 7 7800X3D
 RAM: 32 GB DDR5"
-          rows="7"
-          class="spec-textarea"
-        ></textarea>
-      </div>
+            rows="7"
+            class="spec-textarea"
+          ></textarea>
+        </div>
 
-      @if (fullResponse()) {
-        <div class="results" @fadeIn>
-          <div class="tier-row">
-            <span class="tier-badge" [class]="'tier-' + (fullResponse()?.tier || 'unknown').toLowerCase()">
-              {{ fullResponse()?.tier || 'UNKNOWN' }} TIER
-            </span>
-          </div>
+        @if (fullResponse() && !usingSavedHardware()) {
+          <div class="results" @fadeIn>
+            <div class="tier-row">
+              <span class="tier-badge" [class]="'tier-' + (fullResponse()?.tier || 'unknown').toLowerCase()">
+                {{ fullResponse()?.tier || 'UNKNOWN' }} TIER
+              </span>
+            </div>
 
-          <div class="specs-grid">
-            <div class="spec-item">
-              <span class="spec-label">GPU</span>
-              <span class="spec-val">{{ fullResponse()!.specs.gpu || 'Not detected' }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">VRAM</span>
-              <span class="spec-val">{{ formatVram(fullResponse()!.specs.vram_mb) }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">CPU</span>
-              <span class="spec-val">{{ fullResponse()!.specs.cpu || 'Not detected' }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">RAM</span>
-              <span class="spec-val">{{ fullResponse()!.specs.ram_gb ? fullResponse()!.specs.ram_gb + ' GB' : 'Not detected' }}</span>
-            </div>
-          </div>
-
-          @if (fullResponse()?.tier_scores) {
-            <div class="scores">
-              <h4>Performance Breakdown</h4>
-              <div class="score-list">
-                <div class="score-row">
-                  <span class="score-name">VRAM</span>
-                  <div class="score-track">
-                    <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.vram || 0) * 20"></div>
-                  </div>
-                  <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.vram) }}</span>
-                </div>
-                <div class="score-row">
-                  <span class="score-name">GPU Gen</span>
-                  <div class="score-track">
-                    <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.gpu_gen || 0) * 20"></div>
-                  </div>
-                  <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.gpu_gen) }}</span>
-                </div>
-                <div class="score-row">
-                  <span class="score-name">CPU</span>
-                  <div class="score-track">
-                    <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.cpu || 0) * 20"></div>
-                  </div>
-                  <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.cpu) }}</span>
-                </div>
-                <div class="score-row">
-                  <span class="score-name">RAM</span>
-                  <div class="score-track">
-                    <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.ram || 0) * 20"></div>
-                  </div>
-                  <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.ram) }}</span>
-                </div>
+            <div class="specs-grid">
+              <div class="spec-item">
+                <span class="spec-label">GPU</span>
+                <span class="spec-val">{{ fullResponse()!.specs.gpu || 'Not detected' }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">VRAM</span>
+                <span class="spec-val">{{ formatVram(fullResponse()!.specs.vram_mb) }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">CPU</span>
+                <span class="spec-val">{{ fullResponse()!.specs.cpu || 'Not detected' }}</span>
+              </div>
+              <div class="spec-item">
+                <span class="spec-label">RAM</span>
+                <span class="spec-val">{{ fullResponse()!.specs.ram_gb ? fullResponse()!.specs.ram_gb + ' GB' : 'Not detected' }}</span>
               </div>
             </div>
-          }
-        </div>
+
+            @if (fullResponse()?.tier_scores) {
+              <div class="scores">
+                <h4>Performance Breakdown</h4>
+                <div class="score-list">
+                  <div class="score-row">
+                    <span class="score-name">VRAM</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.vram || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.vram) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">GPU Gen</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.gpu_gen || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.gpu_gen) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">CPU</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.cpu || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.cpu) }}</span>
+                  </div>
+                  <div class="score-row">
+                    <span class="score-name">RAM</span>
+                    <div class="score-track">
+                      <div class="score-fill" [style.width.%]="(fullResponse()!.tier_scores!.ram || 0) * 20"></div>
+                    </div>
+                    <span class="score-val">{{ formatScore(fullResponse()!.tier_scores!.ram) }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
       }
 
       <div class="actions">
@@ -121,7 +200,14 @@ RAM: 32 GB DDR5"
           </svg>
           Back
         </button>
-        @if (!fullResponse()) {
+        @if (usingSavedHardware() && !showManualEntry() && fullResponse()) {
+          <button class="btn-primary" (click)="confirm()">
+            Looks Good, Continue
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        } @else if (!fullResponse() || showManualEntry()) {
           <button class="btn-primary" (click)="analyzeSpecs()" [disabled]="loading() || !rawText.trim()">
             @if (loading()) {
               <span class="btn-spinner"></span>
@@ -158,39 +244,53 @@ RAM: 32 GB DDR5"
       text-align: center;
       margin-bottom: 1.5rem;
     }
-    /* Saved Hardware Banner */
-    .saved-banner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(34, 197, 94, 0.08);
-      border: 1px solid rgba(34, 197, 94, 0.2);
-      border-radius: 10px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.25rem;
-    }
-    .saved-info {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: #22c55e;
+    /* Enter different specs link */
+    .btn-different {
+      display: block;
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
       font-size: 0.8125rem;
       font-weight: 500;
-    }
-    .btn-different {
-      background: none;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: var(--color-text-muted);
-      padding: 0.375rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 500;
+      padding: 0;
+      margin: 1rem auto 0;
       cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color 0.15s;
     }
-    .btn-different:hover {
-      border-color: var(--color-border-hover);
-      color: var(--color-text);
+    .btn-different:hover { color: var(--color-text); }
+
+    /* Back to saved hardware link */
+    .btn-back-to-saved {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      padding: 0;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .btn-back-to-saved:hover { color: var(--color-text); }
+
+    /* Loading state */
+    .loading-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 2.5rem;
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+    }
+    .btn-spinner.lg {
+      width: 24px;
+      height: 24px;
     }
 
     .textarea-wrap {
@@ -400,6 +500,8 @@ export class SpecInputComponent implements OnInit {
   loading = signal(false);
   fullResponse = signal<SpecsParseResponse | null>(null);
   usingSavedHardware = signal(false);
+  showManualEntry = signal(false);
+  savedLoading = signal(false);
 
   constructor(
     private api: ApiService,
@@ -409,25 +511,49 @@ export class SpecInputComponent implements OnInit {
   ngOnInit(): void {
     const hw = this.authService.savedHardware;
     if (hw && (hw.gpu_model || hw.cpu_model)) {
-      // Pre-populate with saved hardware
-      const specs: HardwareSpecs = {
-        gpu: hw.gpu_model || '',
-        cpu: hw.cpu_model || '',
-        ram_gb: hw.ram_gb || 0,
-        vram_mb: hw.vram_mb || 0,
-      };
-      this.fullResponse.set({
-        specs,
-        tier: hw.hardware_tier || 'unknown',
-      } as SpecsParseResponse);
       this.usingSavedHardware.set(true);
+      // Build a text representation of saved hardware and send to backend
+      // to get full tier + tier_scores response
+      const lines: string[] = [];
+      if (hw.gpu_model) lines.push(`GPU: ${hw.gpu_model}`);
+      if (hw.vram_mb) lines.push(`VRAM: ${Math.round(hw.vram_mb / 1024)} GB`);
+      if (hw.cpu_model) lines.push(`CPU: ${hw.cpu_model}`);
+      if (hw.ram_gb) lines.push(`RAM: ${hw.ram_gb} GB`);
+      const formattedText = lines.join('\n');
+      this.rawText = formattedText;
+      this.savedLoading.set(true);
+      this.api.parseSpecs(formattedText).subscribe({
+        next: (response) => {
+          this.fullResponse.set(response);
+          this.savedLoading.set(false);
+        },
+        error: () => {
+          // Fallback: show saved data without tier scores
+          this.fullResponse.set({
+            specs: {
+              gpu: hw.gpu_model || '',
+              cpu: hw.cpu_model || '',
+              ram_gb: hw.ram_gb || 0,
+              vram_mb: hw.vram_mb || 0,
+            },
+            tier: hw.hardware_tier || 'unknown',
+          } as SpecsParseResponse);
+          this.savedLoading.set(false);
+        },
+      });
     }
   }
 
-  clearSavedHardware(): void {
-    this.usingSavedHardware.set(false);
+  switchToManualEntry(): void {
+    this.showManualEntry.set(true);
     this.fullResponse.set(null);
     this.rawText = '';
+  }
+
+  switchToSavedHardware(): void {
+    this.showManualEntry.set(false);
+    // Re-trigger the saved hardware load
+    this.ngOnInit();
   }
 
   formatVram(vramMb: number | undefined): string {

@@ -139,11 +139,124 @@ def _parse_cpu_speed(text: str) -> float | None:
     return None
 
 
+# GPU model → VRAM in MB lookup table.
+# Used to infer VRAM when the text contains a GPU name but no explicit VRAM value
+# (e.g., browser auto-detection via WebGL only returns the GPU model).
+# Ordered from most specific to least specific so longer names match first.
+GPU_VRAM_TABLE: dict[str, int] = {
+    # NVIDIA RTX 50 series
+    "rtx 5090": 32 * 1024,
+    "rtx 5080": 16 * 1024,
+    "rtx 5070 ti": 16 * 1024,
+    "rtx 5070": 12 * 1024,
+    "rtx 5060 ti": 16 * 1024,
+    "rtx 5060": 8 * 1024,
+    # NVIDIA RTX 40 series
+    "rtx 4090": 24 * 1024,
+    "rtx 4080 super": 16 * 1024,
+    "rtx 4080": 16 * 1024,
+    "rtx 4070 ti super": 16 * 1024,
+    "rtx 4070 ti": 12 * 1024,
+    "rtx 4070 super": 12 * 1024,
+    "rtx 4070": 12 * 1024,
+    "rtx 4060 ti": 8 * 1024,
+    "rtx 4060": 8 * 1024,
+    # NVIDIA RTX 30 series
+    "rtx 3090 ti": 24 * 1024,
+    "rtx 3090": 24 * 1024,
+    "rtx 3080 ti": 12 * 1024,
+    "rtx 3080": 10 * 1024,
+    "rtx 3070 ti": 8 * 1024,
+    "rtx 3070": 8 * 1024,
+    "rtx 3060 ti": 8 * 1024,
+    "rtx 3060": 12 * 1024,
+    "rtx 3050": 8 * 1024,
+    # NVIDIA RTX 20 series
+    "rtx 2080 ti": 11 * 1024,
+    "rtx 2080 super": 8 * 1024,
+    "rtx 2080": 8 * 1024,
+    "rtx 2070 super": 8 * 1024,
+    "rtx 2070": 8 * 1024,
+    "rtx 2060 super": 8 * 1024,
+    "rtx 2060": 6 * 1024,
+    # NVIDIA GTX 16 series
+    "gtx 1660 ti": 6 * 1024,
+    "gtx 1660 super": 6 * 1024,
+    "gtx 1660": 6 * 1024,
+    "gtx 1650 super": 4 * 1024,
+    "gtx 1650": 4 * 1024,
+    # NVIDIA GTX 10 series
+    "gtx 1080 ti": 11 * 1024,
+    "gtx 1080": 8 * 1024,
+    "gtx 1070 ti": 8 * 1024,
+    "gtx 1070": 8 * 1024,
+    "gtx 1060": 6 * 1024,
+    "gtx 1050 ti": 4 * 1024,
+    "gtx 1050": 2 * 1024,
+    # AMD RX 9000 series
+    "rx 9070 xt": 16 * 1024,
+    "rx 9070": 16 * 1024,
+    # AMD RX 7000 series
+    "rx 7900 xtx": 24 * 1024,
+    "rx 7900 xt": 20 * 1024,
+    "rx 7900 gre": 16 * 1024,
+    "rx 7800 xt": 16 * 1024,
+    "rx 7700 xt": 12 * 1024,
+    "rx 7600 xt": 16 * 1024,
+    "rx 7600": 8 * 1024,
+    # AMD RX 6000 series
+    "rx 6950 xt": 16 * 1024,
+    "rx 6900 xt": 16 * 1024,
+    "rx 6800 xt": 16 * 1024,
+    "rx 6800": 16 * 1024,
+    "rx 6750 xt": 12 * 1024,
+    "rx 6700 xt": 12 * 1024,
+    "rx 6650 xt": 8 * 1024,
+    "rx 6600 xt": 8 * 1024,
+    "rx 6600": 8 * 1024,
+    "rx 6500 xt": 4 * 1024,
+    # AMD RX 5000 series
+    "rx 5700 xt": 8 * 1024,
+    "rx 5700": 8 * 1024,
+    "rx 5600 xt": 6 * 1024,
+    "rx 5500 xt": 8 * 1024,
+    # Intel Arc
+    "arc b580": 12 * 1024,
+    "arc a770": 16 * 1024,
+    "arc a750": 8 * 1024,
+    "arc a580": 8 * 1024,
+    "arc a380": 6 * 1024,
+}
+
+
+def _infer_vram_from_gpu(gpu_name: str) -> int | None:
+    """Infer VRAM from a known GPU model name.
+
+    This is used when the input text has a GPU name but no explicit VRAM
+    value — for example, when the browser auto-detects via WebGL.
+    """
+    if not gpu_name:
+        return None
+    gpu_lower = gpu_name.lower()
+    # Check from most specific (longest key) to least specific
+    for key, vram_mb in sorted(GPU_VRAM_TABLE.items(), key=lambda x: -len(x[0])):
+        if key in gpu_lower:
+            return vram_mb
+    return None
+
+
 def parse_specs_regex(raw_text: str) -> HardwareSpecs:
     """Parse hardware specs using regex patterns."""
+    gpu = _extract_first_match(raw_text, GPU_PATTERNS)
+    vram_mb = _parse_vram(raw_text)
+
+    # If we found a GPU but no VRAM in the text, try to infer VRAM from the GPU model
+    if gpu and not vram_mb:
+        vram_mb = _infer_vram_from_gpu(gpu)
+
     return HardwareSpecs(
-        gpu=_extract_first_match(raw_text, GPU_PATTERNS),
-        vram_mb=_parse_vram(raw_text),
+        gpu=gpu,
+        vram_mb=vram_mb,
         cpu=_extract_first_match(raw_text, CPU_PATTERNS),
         ram_gb=_parse_ram(raw_text),
         cpu_cores=_parse_cpu_cores(raw_text),

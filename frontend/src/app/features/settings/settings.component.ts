@@ -4,6 +4,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
+import { HardwareDetectorService } from '../../core/services/hardware-detector.service';
 
 type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
 
@@ -149,16 +150,63 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                   </span>
                 </div>
               }
+
+              <!-- Auto-Detect Section -->
               <div class="panel-section">
-                <h3>Paste & Scan</h3>
+                <h3>Auto-Detect</h3>
+                <p class="input-hint" style="margin-bottom: 0.75rem;">Detect your GPU automatically via your browser. VRAM is inferred from the GPU model.</p>
+                <button class="btn-scan btn-detect" (click)="autoDetect()" [disabled]="scanLoading()">
+                  @if (scanLoading() && !hardwareRawText.trim()) {
+                    <span class="btn-spinner"></span>
+                    Detecting...
+                  } @else {
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    Auto-Detect Hardware
+                  }
+                </button>
+              </div>
+
+              <!-- Paste & Scan Section -->
+              <div class="panel-section">
+                <div class="section-header-row">
+                  <h3>Paste & Scan</h3>
+                  <button class="btn-toggle-help" (click)="showHelpGuide.set(!showHelpGuide())">
+                    {{ showHelpGuide() ? 'Hide guide' : 'How to find your specs' }}
+                  </button>
+                </div>
+                @if (showHelpGuide()) {
+                  <div class="help-guide" @fadeIn>
+                    <div class="help-option">
+                      <h4>Option 1: PowerShell Command</h4>
+                      <p>Open PowerShell and run this command, then paste the output below:</p>
+                      <div class="code-block">
+                        <code>{{ powershellCommand }}</code>
+                        <button class="btn-copy" (click)="copyCommand()" [title]="'Copy to clipboard'">
+                          {{ commandCopied() ? 'Copied!' : 'Copy' }}
+                        </button>
+                      </div>
+                    </div>
+                    <div class="help-option">
+                      <h4>Option 2: Task Manager</h4>
+                      <p>Open Task Manager (Ctrl+Shift+Esc) &rarr; Performance tab &rarr; note your CPU name, GPU name, and memory values. Paste or type them below.</p>
+                    </div>
+                    <div class="help-option">
+                      <h4>Option 3: NVIDIA App / AMD Software</h4>
+                      <p>Open your GPU software &rarr; System Information &rarr; copy the hardware details and paste below.</p>
+                    </div>
+                  </div>
+                }
                 <textarea
                   class="input scan-textarea"
                   [(ngModel)]="hardwareRawText"
-                  placeholder="Paste hardware info from NVIDIA App, HWiNFO, or Task Manager..."
+                  placeholder="Paste hardware info from PowerShell output, NVIDIA App, HWiNFO, or Task Manager..."
                   rows="4"
                 ></textarea>
                 <button class="btn-scan" (click)="scanHardware()" [disabled]="scanLoading() || !hardwareRawText.trim()">
-                  @if (scanLoading()) {
+                  @if (scanLoading() && hardwareRawText.trim()) {
                     <span class="btn-spinner"></span>
                     Scanning...
                   } @else {
@@ -166,6 +214,8 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                   }
                 </button>
               </div>
+
+              <!-- Hardware Fields -->
               <div class="panel-section">
                 <h3>GPU Model</h3>
                 <input type="text" class="input" [(ngModel)]="gpuModel" placeholder="e.g. NVIDIA GeForce RTX 4070">
@@ -602,11 +652,21 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
       font-weight: 500;
       transition: border-color 0.15s, background 0.15s;
     }
-    .btn-scan:hover {
+    .btn-scan:hover:not(:disabled) {
       border-color: var(--color-border-hover);
       background: rgba(255, 255, 255, 0.08);
     }
     .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-detect {
+      background: rgba(192, 160, 96, 0.08);
+      border-color: rgba(192, 160, 96, 0.3);
+      color: var(--color-gold);
+      margin-top: 0;
+    }
+    .btn-detect:hover:not(:disabled) {
+      background: rgba(192, 160, 96, 0.15);
+      border-color: var(--color-gold);
+    }
     .btn-spinner {
       width: 12px;
       height: 12px;
@@ -616,6 +676,85 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
       animation: spin 0.6s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Section header with toggle */
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .section-header-row h3 { margin-bottom: 0; }
+    .btn-toggle-help {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .btn-toggle-help:hover { color: var(--color-text); }
+
+    /* Help guide */
+    .help-guide {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .help-option h4 {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      color: var(--color-gold);
+    }
+    .help-option p {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+    .code-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+    .code-block code {
+      flex: 1;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      color: var(--color-text-muted);
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .btn-copy {
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      padding: 0.25rem 0.625rem;
+      border-radius: 6px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-copy:hover {
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+    }
 
     /* Toggle Group */
     .toggle-group {
@@ -769,6 +908,9 @@ export class SettingsComponent implements OnInit {
   hardwareTier = '';
   hardwareRawText = '';
   scanLoading = signal(false);
+  showHelpGuide = signal(false);
+  commandCopied = signal(false);
+  powershellCommand = `$g=(Get-CimInstance Win32_VideoController|Select -First 1).Name;$c=(Get-CimInstance Win32_Processor).Name;$r=[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB);$n=(Get-CimInstance Win32_Processor).NumberOfCores;$t=(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors;"GPU: $g\`nCPU: $c\`nCores: $n cores / $t threads\`nRAM: $r GB"`;
 
   // Preferences
   gameOptions = [
@@ -791,6 +933,7 @@ export class SettingsComponent implements OnInit {
     private api: ApiService,
     private notifications: NotificationService,
     private authService: AuthService,
+    private hardwareDetector: HardwareDetectorService,
   ) {}
 
   ngOnInit(): void {
@@ -819,19 +962,48 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  async autoDetect(): Promise<void> {
+    this.scanLoading.set(true);
+    try {
+      const detected = await this.hardwareDetector.detect();
+      if (!detected.formatted) {
+        this.scanLoading.set(false);
+        this.notifications.error('Could not detect hardware. Try pasting your specs manually.');
+        return;
+      }
+      this.hardwareRawText = detected.formatted;
+      // Send detected text to backend for parsing + tier classification
+      this.api.parseSpecs(detected.formatted).subscribe({
+        next: (response) => {
+          this.scanLoading.set(false);
+          this.applyParsedSpecs(response);
+          this.notifications.success('Hardware detected successfully');
+        },
+        error: () => {
+          this.scanLoading.set(false);
+          this.notifications.error('Hardware detected but failed to classify. You can adjust fields manually.');
+        },
+      });
+    } catch {
+      this.scanLoading.set(false);
+      this.notifications.error('Could not detect hardware. Try pasting your specs manually.');
+    }
+  }
+
+  copyCommand(): void {
+    navigator.clipboard.writeText(this.powershellCommand).then(() => {
+      this.commandCopied.set(true);
+      setTimeout(() => this.commandCopied.set(false), 2000);
+    });
+  }
+
   scanHardware(): void {
     if (!this.hardwareRawText.trim()) return;
     this.scanLoading.set(true);
     this.api.parseSpecs(this.hardwareRawText).subscribe({
       next: (response) => {
         this.scanLoading.set(false);
-        if (response.specs) {
-          if (response.specs.gpu) this.gpuModel = response.specs.gpu;
-          if (response.specs.cpu) this.cpuModel = response.specs.cpu;
-          if (response.specs.ram_gb) this.ramGb = response.specs.ram_gb;
-          if (response.specs.vram_mb) this.vramGb = Math.round(response.specs.vram_mb / 1024);
-        }
-        if (response.tier) this.hardwareTier = response.tier;
+        this.applyParsedSpecs(response);
         this.notifications.success('Hardware info scanned successfully');
       },
       error: () => {
@@ -839,6 +1011,16 @@ export class SettingsComponent implements OnInit {
         this.notifications.error('Failed to scan hardware info');
       },
     });
+  }
+
+  private applyParsedSpecs(response: any): void {
+    if (response.specs) {
+      if (response.specs.gpu) this.gpuModel = response.specs.gpu;
+      if (response.specs.cpu) this.cpuModel = response.specs.cpu;
+      if (response.specs.ram_gb) this.ramGb = response.specs.ram_gb;
+      if (response.specs.vram_mb) this.vramGb = Math.round(response.specs.vram_mb / 1024);
+    }
+    if (response.tier) this.hardwareTier = response.tier;
   }
 
   private loadProfile(): void {
