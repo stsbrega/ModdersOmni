@@ -36,7 +36,7 @@ def upgrade() -> None:
             'together', COALESCE(NULLIF(together_api_key, ''), ''),
             'huggingface', COALESCE(NULLIF(huggingface_api_key, ''), '')
         )
-        WHERE llm_api_keys = '{}'::json
+        WHERE llm_api_keys::text = '{}'
     """))
 
 
