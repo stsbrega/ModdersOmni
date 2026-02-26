@@ -9,7 +9,7 @@ from app.database import get_db
 from app.llm.registry import get_public_registry
 from app.models.user import User
 from app.models.user_settings import UserSettings
-from app.api.deps import get_current_user, get_current_user_optional
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 
