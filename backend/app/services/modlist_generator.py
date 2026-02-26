@@ -12,7 +12,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,7 +114,7 @@ async def _retry_nexus(
     coro_fn: Callable,
     max_retries: int = 3,
     event_callback: Callable[[dict], None] | None = None,
-) -> Any:
+) -> object:
     """Retry a Nexus API call with exponential backoff.
 
     Handles rate limits (429) and server errors (5xx) by retrying.
@@ -1104,7 +1104,6 @@ async def _generate_legacy(
         version_notes=version_notes,
     )
 
-    last_error: Exception | None = None
     provider_errors: list[str] = []
     for i, llm in enumerate(providers_to_try):
         try:
@@ -1194,7 +1193,6 @@ async def _generate_legacy(
             _, friendly = _classify_error(llm, e)
             logger.warning(f"Provider {llm.get_model_name()} failed: {e}")
             provider_errors.append(friendly)
-            last_error = e
             continue
 
     error_summary = "; ".join(provider_errors) if provider_errors else "No LLM provider available"
