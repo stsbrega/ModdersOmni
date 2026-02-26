@@ -41,6 +41,8 @@ export class ApiService {
     cpu_cores?: number;
     cpu_speed_ghz?: number;
     available_storage_gb?: number;
+    llm_provider?: string;
+    llm_api_key?: string;
   }): Observable<Modlist> {
     return this.http.post<Modlist>(`${this.baseUrl}/modlist/generate`, request);
   }

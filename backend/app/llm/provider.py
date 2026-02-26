@@ -288,3 +288,37 @@ class LLMProviderFactory:
             )
         else:
             raise ValueError(f"Unknown LLM provider: {name}")
+
+    @staticmethod
+    def create_from_request(provider_name: str, api_key: str) -> LLMProvider:
+        """Create a provider using per-request user-supplied credentials."""
+        settings = get_settings()
+
+        if provider_name == "anthropic":
+            return AnthropicProvider(api_key=api_key, model=settings.anthropic_model)
+        elif provider_name == "openai":
+            return OpenAICompatibleProvider(
+                base_url="https://api.openai.com/v1",
+                api_key=api_key,
+                model=settings.openai_model,
+            )
+        elif provider_name == "gemini":
+            return OpenAICompatibleProvider(
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                api_key=api_key,
+                model=settings.gemini_model,
+            )
+        elif provider_name == "groq":
+            return OpenAICompatibleProvider(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=api_key,
+                model=settings.groq_model,
+            )
+        elif provider_name == "together":
+            return OpenAICompatibleProvider(
+                base_url="https://api.together.xyz/v1",
+                api_key=api_key,
+                model=settings.together_model,
+            )
+        else:
+            raise ValueError(f"Unsupported provider for user-supplied key: {provider_name}")

@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -10,7 +11,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 @Component({
   selector: 'app-playstyle-select',
   standalone: true,
-  imports: [],
+  imports: [FormsModule],
   animations: [
     trigger('staggerCards', [
       transition(':enter', [
@@ -61,6 +62,87 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
         }
       </div>
 
+      <div class="ai-provider-section">
+        <div class="provider-header" (click)="providerExpanded.set(!providerExpanded())">
+          <div class="provider-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4zM18 14h.01M6 14h.01M15 18s-1 2-3 2-3-2-3-2"/>
+              <rect x="3" y="11" width="18" height="10" rx="2"/>
+            </svg>
+            AI Provider
+          </div>
+          <div class="provider-badge" [class.configured]="selectedProvider() && apiKey()">
+            @if (selectedProvider() && apiKey()) {
+              {{ providerLabel(selectedProvider()) }}
+            } @else {
+              Not configured
+            }
+          </div>
+          <svg class="chevron" [class.expanded]="providerExpanded()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+
+        @if (providerExpanded()) {
+          <div class="provider-body">
+            <p class="provider-desc">
+              Select your AI provider and enter your API key. Your key is stored locally in your browser and sent securely per-request.
+            </p>
+
+            <div class="provider-grid">
+              @for (p of providers; track p.value) {
+                <button
+                  class="provider-card"
+                  [class.selected]="selectedProvider() === p.value"
+                  (click)="selectProvider(p.value)"
+                >
+                  <span class="provider-name">{{ p.label }}</span>
+                  <span class="provider-model">{{ p.model }}</span>
+                </button>
+              }
+            </div>
+
+            @if (selectedProvider()) {
+              <div class="api-key-field">
+                <label for="api-key">{{ providerLabel(selectedProvider()) }} API Key</label>
+                <div class="key-input-wrap">
+                  <input
+                    id="api-key"
+                    [type]="showKey() ? 'text' : 'password'"
+                    [ngModel]="apiKey()"
+                    (ngModelChange)="onApiKeyChange($event)"
+                    placeholder="Enter your API key..."
+                    autocomplete="off"
+                  />
+                  <button class="key-toggle" (click)="showKey.set(!showKey())" type="button">
+                    @if (showKey()) {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    } @else {
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    }
+                  </button>
+                </div>
+                <span class="key-hint">
+                  @if (selectedProvider() === 'anthropic') {
+                    Get your key at console.anthropic.com
+                  } @else if (selectedProvider() === 'openai') {
+                    Get your key at platform.openai.com
+                  } @else if (selectedProvider() === 'gemini') {
+                    Get your key at aistudio.google.com
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <div class="actions">
         <button class="btn-back" (click)="back.emit()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -71,7 +153,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
         <button
           class="btn-primary"
           (click)="generate()"
-          [disabled]="!selectedId() || loading()"
+          [disabled]="!selectedId() || !apiKey() || !selectedProvider() || loading()"
         >
           @if (loading()) {
             <span class="btn-spinner"></span>
@@ -248,6 +330,145 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       animation: spin 0.6s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* AI Provider Section */
+    .ai-provider-section {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .provider-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1.125rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .provider-header:hover { background: rgba(255,255,255,0.02); }
+    .provider-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .provider-badge {
+      margin-left: auto;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.625rem;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.04);
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+    }
+    .provider-badge.configured {
+      background: rgba(192, 160, 96, 0.1);
+      color: var(--color-gold);
+      border-color: rgba(192, 160, 96, 0.25);
+    }
+    .chevron {
+      color: var(--color-text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .chevron.expanded { transform: rotate(180deg); }
+    .provider-body {
+      padding: 0 1.125rem 1.125rem;
+    }
+    .provider-desc {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+      margin: 0 0 1rem;
+    }
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .provider-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 0.5rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--color-text);
+      font-family: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .provider-card:hover {
+      border-color: var(--color-border-hover);
+    }
+    .provider-card.selected {
+      border-color: var(--color-gold);
+      background: rgba(192, 160, 96, 0.06);
+    }
+    .provider-name {
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+    .provider-model {
+      font-size: 0.6875rem;
+      color: var(--color-text-muted);
+    }
+    .api-key-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+    .api-key-field label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+    .key-input-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .key-input-wrap:focus-within {
+      border-color: var(--color-gold);
+    }
+    .key-input-wrap input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 0.8125rem;
+      padding: 0.625rem 0.75rem;
+      outline: none;
+      font-family: monospace;
+    }
+    .key-input-wrap input::placeholder {
+      color: var(--color-text-dim);
+    }
+    .key-toggle {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+    .key-toggle:hover { color: var(--color-text); }
+    .key-hint {
+      font-size: 0.75rem;
+      color: var(--color-text-dim);
+    }
   `],
 })
 export class PlaystyleSelectComponent implements OnInit {
@@ -259,6 +480,18 @@ export class PlaystyleSelectComponent implements OnInit {
   playstyles = signal<Playstyle[]>([]);
   selectedId = signal<number | null>(null);
   loading = signal(false);
+
+  // AI Provider state
+  providerExpanded = signal(true);
+  selectedProvider = signal<string>('');
+  apiKey = signal<string>('');
+  showKey = signal(false);
+
+  providers = [
+    { value: 'anthropic', label: 'Anthropic', model: 'Claude Sonnet 4' },
+    { value: 'openai', label: 'OpenAI', model: 'GPT-4o' },
+    { value: 'gemini', label: 'Google Gemini', model: 'Gemini 2.0 Flash' },
+  ];
 
   constructor(
     private api: ApiService,
@@ -272,15 +505,49 @@ export class PlaystyleSelectComponent implements OnInit {
       next: (playstyles) => this.playstyles.set(playstyles),
       error: () => {},
     });
+
+    // Restore saved provider/key from localStorage
+    const savedProvider = localStorage.getItem('llm_provider');
+    const savedKey = localStorage.getItem('llm_api_key');
+    if (savedProvider) this.selectedProvider.set(savedProvider);
+    if (savedKey) this.apiKey.set(savedKey);
+    if (savedProvider && savedKey) this.providerExpanded.set(false);
   }
 
   select(id: number): void {
     this.selectedId.set(id);
   }
 
+  selectProvider(value: string): void {
+    this.selectedProvider.set(value);
+    localStorage.setItem('llm_provider', value);
+    // Clear key when switching providers
+    this.apiKey.set('');
+    localStorage.removeItem('llm_api_key');
+  }
+
+  onApiKeyChange(value: string): void {
+    this.apiKey.set(value);
+    if (value) {
+      localStorage.setItem('llm_api_key', value);
+    } else {
+      localStorage.removeItem('llm_api_key');
+    }
+  }
+
+  providerLabel(value: string): string {
+    return this.providers.find(p => p.value === value)?.label || value;
+  }
+
   generate(): void {
     const playstyleId = this.selectedId();
     if (!playstyleId) return;
+
+    if (!this.selectedProvider() || !this.apiKey()) {
+      this.notifications.info('Please select an AI provider and enter your API key');
+      this.providerExpanded.set(true);
+      return;
+    }
 
     if (!this.authService.isLoggedIn()) {
       this.notifications.info('Create an account to generate your modlist');
@@ -303,6 +570,8 @@ export class PlaystyleSelectComponent implements OnInit {
         cpu_speed_ghz: this.specs.cpu_speed_ghz,
         game_version: this.gameVersion,
         available_storage_gb: this.getMaxFreeStorageGb(),
+        llm_provider: this.selectedProvider(),
+        llm_api_key: this.apiKey(),
       })
       .subscribe({
         next: (modlist) => {

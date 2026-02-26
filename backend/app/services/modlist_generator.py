@@ -494,7 +494,11 @@ async def generate_modlist(
     nexus = NexusModsClient()
     session = GenerationSession(game_domain=game.nexus_domain, nexus=nexus)
 
-    llm = LLMProviderFactory.create()
+    # Use per-request credentials if provided, otherwise fall back to server config
+    if request.llm_provider and request.llm_api_key:
+        llm = LLMProviderFactory.create_from_request(request.llm_provider, request.llm_api_key)
+    else:
+        llm = LLMProviderFactory.create()
 
     # ── Phase 1: Discovery ──
 

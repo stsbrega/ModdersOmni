@@ -13,6 +13,9 @@ class ModlistGenerateRequest(BaseModel):
     cpu_cores: int | None = None
     cpu_speed_ghz: float | None = None
     available_storage_gb: int | None = None
+    # User-supplied LLM credentials (per-request, never stored server-side)
+    llm_provider: str | None = None  # anthropic, openai, gemini
+    llm_api_key: str | None = None
 
 
 class ModEntry(BaseModel):
