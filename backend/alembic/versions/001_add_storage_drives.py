@@ -15,7 +15,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("storage_drives", sa.Text(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'users' AND column_name = 'storage_drives'"
+    ))
+    if result.scalar() is None:
+        op.add_column("users", sa.Column("storage_drives", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
