@@ -1,187 +1,97 @@
 # ModdersOmni
 
-AI-powered video game mod manager that analyzes your PC hardware and builds custom, stable modlists tailored to your playstyle.
+AI-powered video game modding assistant that analyzes your PC hardware and builds custom, stable modlists tailored to your playstyle.
 
 ## Features
 
-- **Hardware-Aware Modlists** — Paste your PC specs and a multi-factor scoring engine classifies your hardware across four dimensions (GPU generation, VRAM, CPU, RAM) into performance tiers (Low / Mid / High / Ultra)
-- **Game Version Awareness** — Mod filtering respects game editions: Skyrim SE vs AE, Fallout 4 Standard vs Next-Gen. Incompatible mods are excluded automatically
+- **Hardware-Aware Modlists** — Paste your PC specs and ModdersOmni classifies your hardware tier (GPU generation, VRAM, CPU, RAM) to recommend mods your system can handle
+- **Game Version Intelligence** — Distinguishes between Skyrim SE/AE and Fallout 4 Standard/Next-Gen to filter mods by compatibility
 - **Playstyle Presets** — Choose from popular playstyles (Survival, Combat Overhaul, Visual Enhancement, etc.) and get a curated modlist
-- **AI-Powered Curation** — Uses open-source LLMs (local via Ollama or free cloud APIs) to generate compatible, conflict-free modlists tuned to your hardware and version
-- **User Accounts** — Register/login with email or OAuth (Google, Discord). Save modlists, store hardware profiles, and manage per-user settings
-- **Nexus Mods Integration** — Search, browse, and download mods directly via the Nexus Mods GraphQL API
-- **One-Click Downloads** — Download your entire modlist with progress tracking
+- **AI-Powered Curation** — Uses open-source LLMs (local via Ollama or free cloud APIs) to generate compatible, conflict-free modlists
+- **Nexus Mods Integration** — Search, browse, and download mods directly via the Nexus Mods v2 GraphQL API
+- **User Accounts & OAuth** — Register with email or sign in with Google/Discord, save hardware profiles, and access your modlist history
+- **Load Order Management** — Automatic load order sorting based on compatibility rules
+- **One-Click Downloads** — Download your entire modlist with real-time progress tracking via WebSockets
 
 ## Supported Games
 
 - The Elder Scrolls V: Skyrim Special Edition / Anniversary Edition
-- Fallout 4 Standard / Next-Gen Update
+- Fallout 4 (Standard / Next-Gen)
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Angular 19, Tailwind CSS |
-| Backend | Python 3.12, FastAPI |
-| Database | PostgreSQL 16 |
-| AI/LLM | Ollama (local), Groq, Together AI, HuggingFace (cloud) |
-| Auth | JWT + refresh tokens, OAuth 2.0 (Google, Discord) |
-| Mod APIs | Nexus Mods v2 (GraphQL) |
-| Hosting | Render (static site + Python runtime + managed DB) |
+| Frontend | Angular 19, Tailwind CSS 4, TypeScript 5.7 |
+| Backend | Python 3.12, FastAPI 0.115, SQLAlchemy 2.0, Pydantic 2 |
+| Database | PostgreSQL 16 (asyncpg) |
+| Auth | JWT + refresh tokens, OAuth (Google, Discord), email verification |
+| AI/LLM | Ollama (local), Groq, Together AI, HuggingFace (cloud) — OpenAI-compatible client |
+| Mod APIs | Nexus Mods v2 (GraphQL), Custom Sources |
+| Deployment | Render (Python runtime, static site, managed PostgreSQL) |
 
-## Quick Start
+## Live App
 
-### Prerequisites
+ModdersOmni is live at **[moddersomni-web.onrender.com](https://moddersomni-web.onrender.com)**
 
-- [Node.js](https://nodejs.org/) 20+ (frontend)
-- [Python](https://www.python.org/) 3.11+ (backend)
-- [PostgreSQL](https://www.postgresql.org/) 16 (or use a cloud instance)
-- A [Nexus Mods](https://www.nexusmods.com/) account (free API key)
+## Legal Foundation & Methodology
 
-### Backend
+ModdersOmni is built on a legally defensible approach to game modding assistance. This section outlines the principles guiding how the project sources its knowledge and interfaces with game engines.
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate   # Linux/Mac
-# .venv\Scripts\activate    # Windows
-pip install -r requirements.txt
-```
+### Knowledge Base Strategy
 
-Create a `.env` file in `backend/` (see [Environment Variables](#environment-variables) below), then:
+The project's knowledge base is built primarily on publicly available, community-validated resources rather than proprietary game code:
 
-```bash
-python -m app.seeds.run_seed   # Seed database with games, mods, playstyles
-uvicorn app.main:app --reload  # Start dev server on :8000
-```
+- **Official tools**: Bethesda's Creation Kit and its built-in documentation
+- **Community documentation**: UESP Wiki, modding.wiki, and extensive community guides
+- **Open-source community tools**: CommonLibSSE (class definitions), Address Library (function mappings), Champollion (Papyrus decompilation), xEdit (format documentation), and SKSE
+- **Open-source LLMs**: All AI capabilities use openly available models — no proprietary training on copyrighted game code
 
-### Frontend
+This existing community knowledge base is substantial enough to build a powerful modding assistant without deep binary reverse engineering.
 
-```bash
-cd frontend
-npm install
-ng serve   # Start dev server on :4200 (proxies /api to :8000)
-```
+### Reverse Engineering Policy
 
-- Frontend: http://localhost:4200
-- Backend API: http://localhost:8000
-- API Docs (Swagger): http://localhost:8000/docs
+When analysis beyond public documentation is necessary, ModdersOmni limits its scope to understanding functional interfaces — data formats, file structures, and API specifications. These elements are generally unprotectable under the idea/expression dichotomy (17 U.S.C. § 102(b); EU Directive Art. 1(2)). The project follows a clean-room methodology separating analysis from implementation, and never distributes reverse-engineered game code — only original code that interfaces with the game.
 
-## Environment Variables
+### Jurisdictional Considerations
 
-### Backend (`backend/.env`)
+The EU provides the strongest legal protections for this type of work through non-waivable decompilation rights for interoperability. The US offers robust fair use precedents. Canada falls in between with narrower exceptions. Across all jurisdictions, a clean-room approach and focus on functional interfaces over copyrighted expression remain the essential risk-mitigation strategies.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string (`postgresql+asyncpg://user:pass@host/db`) |
-| `SECRET_KEY` | Yes | JWT signing key (random string) |
-| `CORS_ORIGINS` | Yes | Comma-separated allowed origins |
-| `FRONTEND_URL` | Yes | Frontend base URL (for email links) |
-| `LLM_PROVIDER` | No | `ollama`, `groq`, `together`, or `huggingface` (default: `groq`) |
-| `GROQ_API_KEY` | If using Groq | Groq API key |
-| `TOGETHER_API_KEY` | If using Together | Together AI API key |
-| `HUGGINGFACE_API_KEY` | If using HF | HuggingFace API key |
-| `NEXUS_API_KEY` | Yes | Nexus Mods API key |
-| `GOOGLE_CLIENT_ID` | For OAuth | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | For OAuth | Google OAuth client secret |
-| `GOOGLE_REDIRECT_URI` | For OAuth | Google OAuth callback URL |
-| `DISCORD_CLIENT_ID` | For OAuth | Discord OAuth client ID |
-| `DISCORD_CLIENT_SECRET` | For OAuth | Discord OAuth client secret |
-| `DISCORD_REDIRECT_URI` | For OAuth | Discord OAuth callback URL |
-| `SMTP_HOST` | For email | SMTP server (e.g. `smtp.gmail.com`) |
-| `SMTP_PORT` | For email | SMTP port (e.g. `587`) |
-| `SMTP_USER` | For email | SMTP username |
-| `SMTP_PASSWORD` | For email | SMTP password / app password |
+### Copyright & Source Code
 
-## LLM Configuration
-
-ModdersOmni supports multiple LLM providers. Choose one based on your setup:
-
-| Provider | Cost | Requirements | Model |
-|----------|------|-------------|-------|
-| Ollama (Local) | Free | 8GB+ RAM, local install | llama3.1:8b, mistral:7b |
-| Groq | Free tier | API key | llama-3.3-70b-versatile |
-| Together AI | Free tier | API key | Llama-3.3-70B-Instruct-Turbo-Free |
-| HuggingFace | Free tier | API key | Various |
-
-Configure your preferred provider in the Settings page or via `backend/.env`.
+Bethesda's game source code is protected by copyright until at least 2081 (and potentially 2110 under US law). Voluntary release is unlikely given the commercial value of these titles, middleware licensing constraints, and strategic importance of the Creation Engine. ModdersOmni does not depend on source code access — the combination of existing community knowledge with AI-powered analysis of targeted subsystems delivers substantial value to modders on a solid legal foundation.
 
 ## Project Structure
 
 ```
-ModdersOmni/
-├── backend/                # FastAPI backend
+moddersomni/
+├── backend/             # FastAPI backend
 │   ├── app/
-│   │   ├── api/            # Route handlers (auth, specs, modlist, games, etc.)
-│   │   ├── llm/            # LLM provider abstraction (OpenAI-compatible)
-│   │   ├── models/         # SQLAlchemy ORM models (12 models)
-│   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── services/       # Business logic (tier classifier, spec parser, modlist generator, etc.)
-│   │   └── seeds/          # Database seed data (games, mods, playstyles)
-│   ├── tests/              # pytest test suite
-│   └── alembic/            # Database migrations
-├── frontend/               # Angular 19 SPA
+│   │   ├── api/         # Route handlers (auth, games, specs, modlist, downloads, settings, stats)
+│   │   ├── llm/         # LLM provider abstraction (OpenAI-compatible)
+│   │   ├── models/      # SQLAlchemy ORM models
+│   │   ├── schemas/     # Pydantic request/response schemas
+│   │   ├── services/    # Business logic (auth, email, OAuth, spec parser, tier classifier, modlist generator, Nexus client)
+│   │   └── seeds/       # Database seed data
+│   ├── alembic/         # Database migrations
+│   ├── tests/           # pytest + pytest-asyncio
+│   └── .env.example     # Environment variable reference
+├── frontend/            # Angular 19 SPA
 │   └── src/app/
-│       ├── core/           # Singleton services, guards, interceptors
-│       ├── shared/         # Reusable components (header, footer) and models
-│       └── features/       # Feature modules
-│           ├── auth/       # Login, register, OAuth, email verification, password reset
-│           ├── landing/    # Home page
-│           ├── setup/      # Multi-step wizard (game → version → specs → playstyle)
-│           ├── dashboard/  # User dashboard with saved modlists
-│           ├── modlist/    # Generated modlist view
-│           ├── downloads/  # Download tracking
-│           ├── browse/     # Browse mods
-│           └── settings/   # User & LLM provider settings
-├── .github/
-│   ├── workflows/ci.yml    # CI pipeline (lint, type-check, test, build)
-│   ├── CONTRIBUTING.md
-│   └── ISSUE_TEMPLATE/     # Bug report & feature request templates
-├── render.yaml             # Render deployment blueprint
-├── COMETOPASS.md           # Project roadmap (Now / Next / Later)
-└── WAS.md                  # Implementation log
+│       ├── core/        # Services, interceptors, guards
+│       ├── shared/      # Reusable components, models
+│       └── features/    # Feature modules (landing, dashboard, setup, modlist, downloads, browse, settings, auth)
+├── render.yaml          # Render infrastructure blueprint
+└── docs/                # Documentation
 ```
 
 ## Deployment
 
-ModdersOmni is deployed on [Render](https://render.com/) using the `render.yaml` blueprint:
+ModdersOmni is deployed on [Render](https://render.com) using a `render.yaml` infrastructure blueprint. The stack consists of a Python 3.12 backend, Angular static site frontend, and managed PostgreSQL 16 database.
 
-- **Frontend** — Static site with SPA rewrite rules. Build-time `env-config.js` injection for API URL
-- **Backend** — Python 3.12 native runtime. Pre-deploy seed script runs on each deploy
-- **Database** — Render-managed PostgreSQL 16
+To deploy your own instance: push to GitHub, then in Render Dashboard go to Blueprints → New Blueprint Instance. Environment variables marked `sync: false` in `render.yaml` (API keys, OAuth secrets) must be set manually after first deploy.
 
-To deploy your own instance, click the button below or import `render.yaml` from your fork:
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
-
-After deploy, set the `sync: false` environment variables (API keys, OAuth secrets, SMTP credentials) in the Render dashboard.
-
-## Roadmap
-
-See [COMETOPASS.md](COMETOPASS.md) for the full roadmap. Summary:
-
-### Completed
-- Game version-aware mod selection (SE/AE, Standard/Next-Gen)
-- Multi-factor hardware tier classifier (GPU gen + VRAM + CPU + RAM scoring)
-- User accounts with JWT auth, OAuth (Google/Discord), email verification
-- Railway to Render deployment migration
-
-### In Progress
-- Gaming-themed UI redesign (dynamic Skyrim/Fallout themes)
-
-### Up Next
-- Alembic migration setup (replace `create_all`)
-- Test coverage expansion (tier classifier, version filtering, integration tests)
-- Download manager hardening (retry, partial recovery, WebSocket reconnect)
-- Onboarding and empty states
-- LLM provider settings UI
-- Nexus Mods integration polish (thumbnails, caching, rate limiting)
-- CI/CD hardening
-
-### Future
-- Additional game support (Starfield, Baldur's Gate 3, Cyberpunk 2077)
-- Mod list sharing and community features
-- Automated mod conflict detection
+> **Note**: Ollama (local LLM) does not work on Render — use a cloud provider like Groq or Together AI.
 
 ## Contributing
 
@@ -194,6 +104,7 @@ This project is licensed under the GPL-3.0 License — see the [LICENSE](LICENSE
 ## Acknowledgements
 
 - [Nexus Mods](https://www.nexusmods.com/) for their modding platform and API
+- [CommonLibSSE](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE) and [SKSE](https://skse.silverlock.org/) for foundational modding infrastructure
 - [LOOT](https://loot.github.io/) for load order optimization research
 - [Ollama](https://ollama.ai/) for local LLM inference
-- [Render](https://render.com/) for hosting
+- The Bethesda modding community for decades of accumulated knowledge and open-source tooling
