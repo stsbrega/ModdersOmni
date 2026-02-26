@@ -72,9 +72,19 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
             </svg>
             AI Providers
           </div>
-          <div class="provider-badge" [class.configured]="configuredCount() > 0">
-            {{ configuredCount() }} configured
-          </div>
+          @if (isLoggedIn()) {
+            <div class="provider-badge" [class.configured]="configuredCount() > 0">
+              {{ configuredCount() }} configured
+            </div>
+          } @else {
+            <div class="provider-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Account required
+            </div>
+          }
           <svg class="chevron" [class.expanded]="providerExpanded()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 9l6 6 6-6"/>
           </svg>
@@ -82,65 +92,117 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 
         @if (providerExpanded()) {
           <div class="provider-body">
-            @if (pendingGenerate()) {
+            @if (!isLoggedIn()) {
+              <div class="locked-message">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <p>Create an account to configure AI providers and generate your modlist.</p>
+              </div>
+            } @else if (pendingGenerate()) {
               <p class="pending-prompt">
                 Enter at least one API key below, then generation will start automatically.
               </p>
+
+              <div class="provider-list">
+                @for (p of providers(); track p.id) {
+                  <div class="provider-row" [class.has-key]="getKey(p.id)">
+                    <div class="provider-info">
+                      <div class="provider-status">
+                        @if (getKey(p.id)) {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        }
+                      </div>
+                      <div>
+                        <span class="provider-name">{{ p.name }}</span>
+                        <span class="provider-model">{{ p.model }}</span>
+                      </div>
+                    </div>
+                    <div class="key-input-wrap">
+                      <input
+                        [type]="isKeyVisible(p.id) ? 'text' : 'password'"
+                        [value]="getKey(p.id)"
+                        (input)="onKeyInput(p.id, $event)"
+                        [placeholder]="p.placeholder || 'API key'"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button class="key-toggle" (click)="toggleKeyVisibility(p.id)" type="button" tabindex="-1">
+                        @if (isKeyVisible(p.id)) {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        } @else {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        }
+                      </button>
+                    </div>
+                    <span class="key-hint">{{ p.hint_url }}</span>
+                  </div>
+                }
+              </div>
             } @else {
               <p class="provider-desc">
                 Enter API keys for one or more providers. If one hits a rate limit, the next will be tried automatically.
               </p>
-            }
 
-            <div class="provider-list">
-              @for (p of providers(); track p.id) {
-                <div class="provider-row" [class.has-key]="getKey(p.id)">
-                  <div class="provider-info">
-                    <div class="provider-status">
-                      @if (getKey(p.id)) {
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      }
+              <div class="provider-list">
+                @for (p of providers(); track p.id) {
+                  <div class="provider-row" [class.has-key]="getKey(p.id)">
+                    <div class="provider-info">
+                      <div class="provider-status">
+                        @if (getKey(p.id)) {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        }
+                      </div>
+                      <div>
+                        <span class="provider-name">{{ p.name }}</span>
+                        <span class="provider-model">{{ p.model }}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span class="provider-name">{{ p.name }}</span>
-                      <span class="provider-model">{{ p.model }}</span>
+                    <div class="key-input-wrap">
+                      <input
+                        [type]="isKeyVisible(p.id) ? 'text' : 'password'"
+                        [value]="getKey(p.id)"
+                        (input)="onKeyInput(p.id, $event)"
+                        [placeholder]="p.placeholder || 'API key'"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button class="key-toggle" (click)="toggleKeyVisibility(p.id)" type="button" tabindex="-1">
+                        @if (isKeyVisible(p.id)) {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        } @else {
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        }
+                      </button>
                     </div>
+                    <span class="key-hint">{{ p.hint_url }}</span>
                   </div>
-                  <div class="key-input-wrap">
-                    <input
-                      [type]="isKeyVisible(p.id) ? 'text' : 'password'"
-                      [value]="getKey(p.id)"
-                      (input)="onKeyInput(p.id, $event)"
-                      [placeholder]="p.placeholder || 'API key'"
-                      autocomplete="off"
-                      spellcheck="false"
-                    />
-                    <button class="key-toggle" (click)="toggleKeyVisibility(p.id)" type="button" tabindex="-1">
-                      @if (isKeyVisible(p.id)) {
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                          <line x1="1" y1="1" x2="23" y2="23"/>
-                        </svg>
-                      } @else {
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      }
-                    </button>
+                }
+                @if (providers().length === 0) {
+                  <div class="loading-state">
+                    <span class="load-spinner"></span>
+                    Loading providers...
                   </div>
-                  <span class="key-hint">{{ p.hint_url }}</span>
-                </div>
-              }
-              @if (providers().length === 0) {
-                <div class="loading-state">
-                  <span class="load-spinner"></span>
-                  Loading providers...
-                </div>
-              }
-            </div>
+                }
+              </div>
+            }
           </div>
         }
       </div>
@@ -398,6 +460,25 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       margin: 0 0 1rem;
       font-weight: 500;
     }
+    .locked-message {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      color: var(--color-text-muted);
+    }
+    .locked-message svg {
+      flex-shrink: 0;
+      color: var(--color-text-dim);
+    }
+    .locked-message p {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      margin: 0;
+    }
 
     /* Provider list (vertical rows) */
     .provider-list {
@@ -496,6 +577,7 @@ export class PlaystyleSelectComponent implements OnInit {
   @Input() gameId!: number;
   @Input() specs!: HardwareSpecs;
   @Input() gameVersion: string | undefined;
+  @Input() initialPlaystyleId?: number;
   @Output() back = new EventEmitter<void>();
 
   playstyles = signal<Playstyle[]>([]);
@@ -522,7 +604,13 @@ export class PlaystyleSelectComponent implements OnInit {
 
   ngOnInit(): void {
     this.api.getPlaystyles(this.gameId).subscribe({
-      next: (playstyles) => this.playstyles.set(playstyles),
+      next: (playstyles) => {
+        this.playstyles.set(playstyles);
+        // Auto-select playstyle if restored from wizard state
+        if (this.initialPlaystyleId && playstyles.some(ps => ps.id === this.initialPlaystyleId)) {
+          this.selectedId.set(this.initialPlaystyleId);
+        }
+      },
       error: () => {},
     });
 
@@ -532,41 +620,33 @@ export class PlaystyleSelectComponent implements OnInit {
       error: () => {},
     });
 
-    // Restore keys: profile (if logged in) takes priority, then localStorage
-    let localKeys: Record<string, string> = {};
-    try {
-      const saved = localStorage.getItem('llm_keys');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') localKeys = parsed;
-      }
-    } catch { /* ignore corrupt localStorage */ }
-
+    // Only load keys if logged in — guests don't see the key inputs
     if (this.authService.isLoggedIn()) {
+      let localKeys: Record<string, string> = {};
+      try {
+        const saved = localStorage.getItem('llm_keys');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') localKeys = parsed;
+        }
+      } catch { /* ignore corrupt localStorage */ }
+
       this.api.getLlmKeys().subscribe({
         next: (profileKeys) => {
-          // Merge: profile keys override localStorage
           const merged = { ...localKeys, ...profileKeys };
           this.providerKeys.set(merged);
-          // Sync merged keys back to localStorage
           this.persistToLocalStorage(merged);
           if (Object.values(merged).some(k => k?.length > 0)) {
             this.providerExpanded.set(false);
           }
         },
         error: () => {
-          // Profile load failed — use localStorage only
           this.providerKeys.set(localKeys);
           if (Object.values(localKeys).some(k => k?.length > 0)) {
             this.providerExpanded.set(false);
           }
         },
       });
-    } else {
-      this.providerKeys.set(localKeys);
-      if (Object.values(localKeys).some(k => k?.length > 0)) {
-        this.providerExpanded.set(false);
-      }
     }
   }
 
@@ -616,21 +696,27 @@ export class PlaystyleSelectComponent implements OnInit {
     this.visibleKeys.set(current);
   }
 
+  isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
+  }
+
   generate(): void {
     const playstyleId = this.selectedId();
     if (!playstyleId) return;
 
-    if (this.configuredCount() === 0) {
-      this.pendingGenerate.set(true);
-      this.providerExpanded.set(true);
-      return;
-    }
-
+    // Auth check first — guests can't enter keys or generate
     if (!this.authService.isLoggedIn()) {
+      this.saveWizardState(playstyleId);
       this.notifications.info('Create an account to generate your modlist');
       this.router.navigate(['/auth/register'], {
         queryParams: { returnUrl: '/setup' },
       });
+      return;
+    }
+
+    if (this.configuredCount() === 0) {
+      this.pendingGenerate.set(true);
+      this.providerExpanded.set(true);
       return;
     }
 
@@ -676,6 +762,17 @@ export class PlaystyleSelectComponent implements OnInit {
           }
         },
       });
+  }
+
+  private saveWizardState(playstyleId: number): void {
+    const state = {
+      gameId: this.gameId,
+      gameVersion: this.gameVersion,
+      specs: this.specs,
+      playstyleId,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem('setup_wizard_state', JSON.stringify(state));
   }
 
   private persistToLocalStorage(keys: Record<string, string>): void {

@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { GameSelectComponent } from './steps/game-select/game-select.component';
 import { SpecInputComponent } from './steps/spec-input/spec-input.component';
 import { PlaystyleSelectComponent } from './steps/playstyle-select/playstyle-select.component';
@@ -87,6 +87,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
               [gameId]="selectedGameId()!"
               [specs]="parsedSpecs()!"
               [gameVersion]="selectedGameVersion()!"
+              [initialPlaystyleId]="restoredPlaystyleId()"
               (back)="goBack()"
             />
           }
@@ -258,12 +259,13 @@ import { trigger, transition, style, animate } from '@angular/animations';
     .btn-back:hover { color: var(--color-text); }
   `],
 })
-export class SetupComponent {
+export class SetupComponent implements OnInit {
   currentStep = signal(1);
   selectedGameId = signal<number | null>(null);
   selectedGameVersion = signal<string | null>(null);
   selectedGameVersions = signal<string[]>([]);
   parsedSpecs = signal<HardwareSpecs | null>(null);
+  restoredPlaystyleId = signal<number | undefined>(undefined);
 
   steps = [
     { number: 1, label: 'Game' },
@@ -276,6 +278,31 @@ export class SetupComponent {
     private api: ApiService,
     private themeService: ThemeService,
   ) {}
+
+  ngOnInit(): void {
+    try {
+      const raw = localStorage.getItem('setup_wizard_state');
+      if (!raw) return;
+      const state = JSON.parse(raw);
+
+      // Ignore stale state (> 1 hour old)
+      const ONE_HOUR = 60 * 60 * 1000;
+      if (!state?.timestamp || Date.now() - state.timestamp > ONE_HOUR) {
+        localStorage.removeItem('setup_wizard_state');
+        return;
+      }
+
+      // Restore wizard state
+      if (state.gameId && state.specs) {
+        this.selectedGameId.set(state.gameId);
+        this.selectedGameVersion.set(state.gameVersion || null);
+        this.parsedSpecs.set(state.specs);
+        this.restoredPlaystyleId.set(state.playstyleId);
+        this.currentStep.set(4);
+        localStorage.removeItem('setup_wizard_state');
+      }
+    } catch { /* ignore corrupt state */ }
+  }
 
   onGameSelected(gameId: number): void {
     this.selectedGameId.set(gameId);

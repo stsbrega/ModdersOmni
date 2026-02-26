@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 
@@ -115,7 +115,7 @@ import { NotificationService } from '../../../core/services/notification.service
         </div>
 
         <p class="auth-footer">
-          Already have an account? <a routerLink="/auth/login">Sign in</a>
+          Already have an account? <a [routerLink]="['/auth/login']" [queryParams]="returnUrl !== '/dashboard' ? { returnUrl: returnUrl } : {}">Sign in</a>
         </p>
       </div>
     </div>
@@ -349,11 +349,16 @@ export class RegisterComponent {
   confirmPassword = '';
   loading = signal(false);
 
+  returnUrl = '/dashboard';
+
   constructor(
     private authService: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private notifications: NotificationService,
-  ) {}
+  ) {
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+  }
 
   passwordStrength(): number {
     const p = this.password;
@@ -381,7 +386,7 @@ export class RegisterComponent {
         next: () => {
           this.loading.set(false);
           this.notifications.success('Account created! Check your email for verification.');
-          this.router.navigateByUrl('/dashboard');
+          this.router.navigateByUrl(this.returnUrl);
         },
         error: (err) => {
           this.loading.set(false);
