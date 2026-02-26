@@ -27,6 +27,8 @@ export interface Modlist {
   entries: ModEntry[];
   llm_provider?: string;
   user_knowledge_flags?: UserKnowledgeFlag[];
+  used_fallback?: boolean;
+  generation_error?: string;
 }
 
 export interface DownloadStatus {

@@ -16,15 +16,15 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       let message = 'An unexpected error occurred';
 
       if (error.status === 0) {
-        message = 'Unable to connect to server. Is the backend running?';
+        message = 'Unable to connect to server. The service may be starting up — try again in 30 seconds.';
       } else if (error.status === 404) {
         message = 'Resource not found';
       } else if (error.status === 422) {
         message = error.error?.detail || 'Invalid request data';
-      } else if (error.status >= 500) {
-        message = 'Server error. Please try again later.';
       } else if (error.error?.detail) {
         message = error.error.detail;
+      } else if (error.status >= 500) {
+        message = `Server error (${error.status}). Please try again.`;
       }
 
       notifications.error(message);

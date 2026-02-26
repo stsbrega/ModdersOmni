@@ -51,6 +51,8 @@ class ModlistResponse(BaseModel):
     entries: list[ModEntry] = []
     llm_provider: str | None = None
     user_knowledge_flags: list[UserKnowledgeFlag] = []
+    used_fallback: bool = False
+    generation_error: str | None = None
 
 
 class DownloadRequest(BaseModel):

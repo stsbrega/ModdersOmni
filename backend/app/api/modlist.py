@@ -68,10 +68,12 @@ async def generate_modlist(
         raise HTTPException(status_code=404, detail="Playstyle not found")
 
     result: GenerationResult | None = None
+    generation_error: str | None = None
     try:
         result = await run_generation(db, request)
     except Exception as e:
-        logger.error(f"LLM generation failed: {e}")
+        generation_error = str(e)
+        logger.error(f"LLM generation failed ({type(e).__name__}): {e}")
 
     # Determine if we're using fallback
     use_fallback = result is None or not result.entries
@@ -162,6 +164,8 @@ async def generate_modlist(
         entries=entries_schema,
         llm_provider=modlist.llm_provider,
         user_knowledge_flags=knowledge_flags_schema,
+        used_fallback=use_fallback,
+        generation_error=generation_error,
     )
 
 
@@ -235,6 +239,7 @@ async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
         entries=entries,
         llm_provider=modlist.llm_provider,
         user_knowledge_flags=flags,
+        used_fallback=modlist.llm_provider == "fallback",
     )
 
 

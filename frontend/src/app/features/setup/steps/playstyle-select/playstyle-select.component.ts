@@ -597,10 +597,23 @@ export class PlaystyleSelectComponent implements OnInit {
       .subscribe({
         next: (modlist) => {
           this.loading.set(false);
+          if (modlist.used_fallback && modlist.generation_error) {
+            this.notifications.warning(
+              `AI generation failed: ${modlist.generation_error}. Showing curated fallback list.`
+            );
+          } else if (modlist.used_fallback) {
+            this.notifications.warning(
+              'AI generation returned no results. Showing curated fallback list.'
+            );
+          }
           this.router.navigate(['/modlist', modlist.id]);
         },
-        error: () => {
+        error: (err) => {
           this.loading.set(false);
+          // The error interceptor already shows a toast, but add context if missing
+          if (!err?.error?.detail && err?.status !== 0) {
+            this.notifications.error('Modlist generation failed. Check your API keys and try again.');
+          }
         },
       });
   }

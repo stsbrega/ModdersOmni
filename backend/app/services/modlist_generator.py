@@ -525,6 +525,7 @@ async def generate_modlist(
 
     # Try each provider in order — fall back on failure
     last_error: Exception | None = None
+    provider_errors: list[str] = []
     for i, llm in enumerate(providers_to_try):
         try:
             # Reset session state for each attempt
@@ -591,12 +592,30 @@ async def generate_modlist(
             )
 
         except Exception as e:
-            logger.warning(f"Provider {llm.get_model_name()} failed: {e}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            # Classify the error for user-facing messages
+            if "rate" in error_msg.lower() or "429" in error_msg:
+                friendly = f"{llm.get_model_name()}: Rate limited — too many requests"
+            elif "auth" in error_msg.lower() or "401" in error_msg or "invalid" in error_msg.lower() and "key" in error_msg.lower():
+                friendly = f"{llm.get_model_name()}: Invalid API key"
+            elif "quota" in error_msg.lower() or "insufficient" in error_msg.lower() or "billing" in error_msg.lower():
+                friendly = f"{llm.get_model_name()}: Quota exceeded or billing issue"
+            elif "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                friendly = f"{llm.get_model_name()}: Request timed out"
+            elif "connect" in error_msg.lower() or "network" in error_msg.lower():
+                friendly = f"{llm.get_model_name()}: Connection failed"
+            else:
+                friendly = f"{llm.get_model_name()}: {error_type} — {error_msg[:120]}"
+
+            logger.warning(f"Provider {llm.get_model_name()} failed ({error_type}): {error_msg}")
+            provider_errors.append(friendly)
             last_error = e
             continue
 
-    # All providers exhausted
-    raise last_error or ValueError("No LLM provider available")
+    # All providers exhausted — include error details
+    error_summary = "; ".join(provider_errors) if provider_errors else "No LLM provider available"
+    raise RuntimeError(error_summary)
 
 
 # ──────────────────────────────────────────────
