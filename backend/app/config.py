@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     nexus_api_key: str = ""
 
     # LLM Provider
-    llm_provider: str = "ollama"  # ollama, groq, together, huggingface
+    llm_provider: str = "ollama"  # ollama, groq, together, huggingface, anthropic, openai, gemini
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434/v1"
@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     # HuggingFace
     huggingface_api_key: str = ""
     huggingface_model: str = "meta-llama/Llama-3.1-8B-Instruct"
+
+    # Anthropic (Claude)
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-20250514"
+
+    # OpenAI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+
+    # Google Gemini (uses OpenAI-compatible endpoint)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
 
     # Custom Mod Source
     custom_source_api_url: str = ""

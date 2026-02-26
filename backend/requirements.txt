@@ -14,6 +14,7 @@ pydantic-settings==2.7.1
 
 # LLM
 openai==1.58.1
+anthropic>=0.40.0
 
 # HTTP client
 httpx==0.28.1
