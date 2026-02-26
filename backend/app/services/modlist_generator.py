@@ -494,14 +494,21 @@ async def generate_modlist(
     nexus = NexusModsClient()
     session = GenerationSession(game_domain=game.nexus_domain, nexus=nexus)
 
-    # Use per-request credentials if provided, otherwise fall back to server config
-    if request.llm_provider and request.llm_api_key:
-        llm = LLMProviderFactory.create_from_request(request.llm_provider, request.llm_api_key)
-    else:
-        llm = LLMProviderFactory.create()
+    # Build ordered list of LLM providers to try
+    providers_to_try: list[LLMProvider] = []
+    for cred in request.llm_credentials:
+        try:
+            providers_to_try.append(
+                LLMProviderFactory.create_from_request(cred.provider, cred.api_key)
+            )
+        except ValueError:
+            logger.warning(f"Skipping unknown provider: {cred.provider}")
 
-    # ── Phase 1: Discovery ──
+    if not providers_to_try:
+        # Fall back to server-configured provider
+        providers_to_try.append(LLMProviderFactory.create())
 
+    # Build prompts (shared across retries)
     discovery_prompt = DISCOVERY_SYSTEM_PROMPT.format(
         game_name=game.name,
         game_version=game_version or "Unknown",
@@ -516,60 +523,80 @@ async def generate_modlist(
         version_notes=version_notes,
     )
 
-    messages = [
-        {"role": "system", "content": discovery_prompt},
-        {"role": "user", "content": f"Build a {playstyle.name} modlist for {game.name} ({game_version or 'any version'})."},
-    ]
+    # Try each provider in order — fall back on failure
+    last_error: Exception | None = None
+    for i, llm in enumerate(providers_to_try):
+        try:
+            # Reset session state for each attempt
+            session.modlist.clear()
+            session.patches.clear()
+            session.knowledge_flags.clear()
+            session.description_cache.clear()
+            session.finalized = False
 
-    logger.info("Starting Phase 1: Discovery")
-    await llm.generate_with_tools(
-        messages=messages,
-        tools=PHASE1_TOOLS,
-        tool_handlers=_build_phase1_handlers(session),
-        max_iterations=20,
-    )
-    logger.info(f"Phase 1 complete: {len(session.modlist)} mods discovered")
+            logger.info(f"Trying provider {i+1}/{len(providers_to_try)}: {llm.get_model_name()}")
 
-    # ── Phase 2: Patch Review ──
+            # ── Phase 1: Discovery ──
+            messages = [
+                {"role": "system", "content": discovery_prompt},
+                {"role": "user", "content": f"Build a {playstyle.name} modlist for {game.name} ({game_version or 'any version'})."},
+            ]
 
-    if session.modlist:
-        modlist_summary = "\n".join(
-            f"{i+1}. {m['name']} (Nexus ID: {m['nexus_mod_id']}) — {m.get('reason', '')}"
-            for i, m in enumerate(session.modlist)
-        )
+            logger.info("Starting Phase 1: Discovery")
+            await llm.generate_with_tools(
+                messages=messages,
+                tools=PHASE1_TOOLS,
+                tool_handlers=_build_phase1_handlers(session),
+                max_iterations=20,
+            )
+            logger.info(f"Phase 1 complete: {len(session.modlist)} mods discovered")
 
-        patch_prompt = PATCH_REVIEW_SYSTEM_PROMPT.format(
-            game_name=game.name,
-            game_version=game_version or "Unknown",
-            modlist_summary=modlist_summary,
-        )
+            # ── Phase 2: Patch Review ──
+            if session.modlist:
+                modlist_summary = "\n".join(
+                    f"{i+1}. {m['name']} (Nexus ID: {m['nexus_mod_id']}) — {m.get('reason', '')}"
+                    for i, m in enumerate(session.modlist)
+                )
 
-        session.finalized = False  # Reset for Phase 2
-        patch_messages = [
-            {"role": "system", "content": patch_prompt},
-            {"role": "user", "content": "Review the modlist above for compatibility patches."},
-        ]
+                patch_prompt = PATCH_REVIEW_SYSTEM_PROMPT.format(
+                    game_name=game.name,
+                    game_version=game_version or "Unknown",
+                    modlist_summary=modlist_summary,
+                )
 
-        logger.info("Starting Phase 2: Patch Review")
-        await llm.generate_with_tools(
-            messages=patch_messages,
-            tools=PHASE2_TOOLS,
-            tool_handlers=_build_phase2_handlers(session),
-            max_iterations=15,
-        )
-        logger.info(
-            f"Phase 2 complete: {len(session.patches)} patches, "
-            f"{len(session.knowledge_flags)} flags"
-        )
+                session.finalized = False
+                patch_messages = [
+                    {"role": "system", "content": patch_prompt},
+                    {"role": "user", "content": "Review the modlist above for compatibility patches."},
+                ]
 
-    # ── Combine results ──
+                logger.info("Starting Phase 2: Patch Review")
+                await llm.generate_with_tools(
+                    messages=patch_messages,
+                    tools=PHASE2_TOOLS,
+                    tool_handlers=_build_phase2_handlers(session),
+                    max_iterations=15,
+                )
+                logger.info(
+                    f"Phase 2 complete: {len(session.patches)} patches, "
+                    f"{len(session.knowledge_flags)} flags"
+                )
 
-    all_entries = session.modlist + session.patches
-    return GenerationResult(
-        entries=all_entries,
-        knowledge_flags=session.knowledge_flags,
-        llm_provider=llm.get_model_name(),
-    )
+            # ── Success — return results ──
+            all_entries = session.modlist + session.patches
+            return GenerationResult(
+                entries=all_entries,
+                knowledge_flags=session.knowledge_flags,
+                llm_provider=llm.get_model_name(),
+            )
+
+        except Exception as e:
+            logger.warning(f"Provider {llm.get_model_name()} failed: {e}")
+            last_error = e
+            continue
+
+    # All providers exhausted
+    raise last_error or ValueError("No LLM provider available")
 
 
 # ──────────────────────────────────────────────
