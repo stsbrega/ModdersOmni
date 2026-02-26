@@ -25,8 +25,14 @@ class LLMProvider(ABC):
         tools: list[dict],
         tool_handlers: dict[str, ToolHandler],
         max_iterations: int = 15,
+        on_text: Callable[[str], None] | None = None,
     ) -> list[dict]:
-        """Run a tool-calling loop. Returns the full message history."""
+        """Run a tool-calling loop. Returns the full message history.
+
+        Args:
+            on_text: Optional callback invoked when the LLM produces text content.
+                     Used for streaming 'thinking' events to the frontend.
+        """
         pass
 
     @abstractmethod
@@ -58,6 +64,7 @@ class OpenAICompatibleProvider(LLMProvider):
         tools: list[dict],
         tool_handlers: dict[str, ToolHandler],
         max_iterations: int = 15,
+        on_text: Callable[[str], None] | None = None,
     ) -> list[dict]:
         """Run a tool-calling loop until the LLM stops calling tools or we hit max_iterations."""
         messages = list(messages)  # don't mutate caller's list
@@ -77,6 +84,8 @@ class OpenAICompatibleProvider(LLMProvider):
 
             if choice.message.content:
                 assistant_msg["content"] = choice.message.content
+                if on_text:
+                    on_text(choice.message.content)
 
             if choice.message.tool_calls:
                 assistant_msg["tool_calls"] = [
@@ -154,6 +163,7 @@ class AnthropicProvider(LLMProvider):
         tools: list[dict],
         tool_handlers: dict[str, ToolHandler],
         max_iterations: int = 15,
+        on_text: Callable[[str], None] | None = None,
     ) -> list[dict]:
         # Extract system prompt and convert messages
         system = ""
@@ -192,6 +202,8 @@ class AnthropicProvider(LLMProvider):
             for block in response.content:
                 if block.type == "text":
                     assistant_content.append({"type": "text", "text": block.text})
+                    if on_text:
+                        on_text(block.text)
                 elif block.type == "tool_use":
                     assistant_content.append({
                         "type": "tool_use",

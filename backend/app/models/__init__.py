@@ -9,6 +9,7 @@ from app.models.user_settings import UserSettings
 from app.models.user_oauth_provider import UserOAuthProvider
 from app.models.refresh_token import RefreshToken
 from app.models.email_verification import EmailVerification
+from app.models.mod_build_phase import ModBuildPhase
 
 __all__ = [
     "Game",
@@ -23,4 +24,5 @@ __all__ = [
     "UserOAuthProvider",
     "RefreshToken",
     "EmailVerification",
+    "ModBuildPhase",
 ]

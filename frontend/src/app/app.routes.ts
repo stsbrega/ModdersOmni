@@ -6,6 +6,7 @@ import { SetupComponent } from './features/setup/setup.component';
 import { ModlistComponent } from './features/modlist/modlist.component';
 import { DownloadsComponent } from './features/downloads/downloads.component';
 import { SettingsComponent } from './features/settings/settings.component';
+import { GenerationComponent } from './features/generation/generation.component';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { AuthCallbackComponent } from './features/auth/callback/auth-callback.component';
@@ -33,6 +34,7 @@ export const routes: Routes = [
   // Auth-required routes
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
+  { path: 'generate/:id', component: GenerationComponent, canActivate: [authGuard] },
 
   // Public routes
   { path: 'modlist/:id', component: ModlistComponent },

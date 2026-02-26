@@ -52,13 +52,71 @@ def _flag_to_schema(flag: ModlistKnowledgeFlag) -> UserKnowledgeFlag:
     )
 
 
+async def save_modlist_to_db(
+    db: AsyncSession,
+    request: ModlistGenerateRequest,
+    result: GenerationResult,
+    user_id: uuid.UUID | None = None,
+) -> Modlist:
+    """Save a generation result to the database.
+
+    Creates the Modlist, ModlistEntry rows, and ModlistKnowledgeFlag rows.
+    Returns the saved Modlist with its generated UUID.
+
+    This helper is used by both the legacy synchronous endpoint and the
+    new background-task generation flow.
+    """
+    modlist = Modlist(
+        game_id=request.game_id,
+        playstyle_id=request.playstyle_id,
+        gpu_model=request.gpu,
+        cpu_model=request.cpu,
+        ram_gb=request.ram_gb,
+        vram_mb=request.vram_mb,
+        llm_provider=result.llm_provider,
+        user_id=user_id,
+    )
+    db.add(modlist)
+    await db.flush()
+
+    for i, mod_data in enumerate(result.entries):
+        entry = ModlistEntry(
+            modlist_id=modlist.id,
+            nexus_mod_id=mod_data.get("nexus_mod_id"),
+            mod_id=mod_data.get("mod_id"),
+            name=mod_data.get("name", "Unknown"),
+            author=mod_data.get("author"),
+            summary=mod_data.get("summary"),
+            reason=mod_data.get("reason"),
+            load_order=mod_data.get("load_order", i + 1),
+            enabled=True,
+            download_status="pending",
+            is_patch=mod_data.get("is_patch", False),
+            patches_mods=mod_data.get("patches_mods"),
+        )
+        db.add(entry)
+
+    for flag_data in result.knowledge_flags:
+        flag = ModlistKnowledgeFlag(
+            modlist_id=modlist.id,
+            mod_a_name=flag_data["mod_a"],
+            mod_b_name=flag_data["mod_b"],
+            issue=flag_data["issue"],
+            severity=flag_data.get("severity", "warning"),
+        )
+        db.add(flag)
+
+    await db.commit()
+    return modlist
+
+
 @router.post("/generate", response_model=ModlistResponse)
 async def generate_modlist(
     request: ModlistGenerateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
-    # Validate game and playstyle exist
+    """Legacy synchronous generation endpoint (backward compatible)."""
     game = await db.get(Game, request.game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -75,31 +133,42 @@ async def generate_modlist(
         generation_error = str(e)
         logger.error(f"LLM generation failed ({type(e).__name__}): {e}")
 
-    # Determine if we're using fallback
     use_fallback = result is None or not result.entries
-    if use_fallback:
+    user_id = current_user.id if current_user else None
+
+    if not use_fallback:
+        modlist = await save_modlist_to_db(db, request, result, user_id)
+        entry_result = await db.execute(
+            select(ModlistEntry)
+            .where(ModlistEntry.modlist_id == modlist.id)
+            .order_by(ModlistEntry.load_order)
+        )
+        entries_schema = [_entry_to_schema(e) for e in entry_result.scalars().all()]
+        knowledge_flags_schema = [
+            UserKnowledgeFlag(
+                mod_a=f["mod_a"], mod_b=f["mod_b"],
+                issue=f["issue"], severity=f.get("severity", "warning"),
+            )
+            for f in result.knowledge_flags
+        ]
+    else:
         fallback_mods = await _fallback_modlist(
             db, request.playstyle_id, request.vram_mb, request.game_version
         )
+        modlist = Modlist(
+            game_id=request.game_id,
+            playstyle_id=request.playstyle_id,
+            gpu_model=request.gpu,
+            cpu_model=request.cpu,
+            ram_gb=request.ram_gb,
+            vram_mb=request.vram_mb,
+            llm_provider="fallback",
+            user_id=user_id,
+        )
+        db.add(modlist)
+        await db.flush()
 
-    # Save the modlist
-    modlist = Modlist(
-        game_id=request.game_id,
-        playstyle_id=request.playstyle_id,
-        gpu_model=request.gpu,
-        cpu_model=request.cpu,
-        ram_gb=request.ram_gb,
-        vram_mb=request.vram_mb,
-        llm_provider=(result.llm_provider if result else "fallback") if not use_fallback else "fallback",
-        user_id=current_user.id if current_user else None,
-    )
-    db.add(modlist)
-    await db.flush()
-
-    entries_schema = []
-
-    if use_fallback:
-        # Fallback path — uses curated DB mods
+        entries_schema = []
         for i, mod_data in enumerate(fallback_mods):
             entry = ModlistEntry(
                 modlist_id=modlist.id,
@@ -114,48 +183,9 @@ async def generate_modlist(
             )
             db.add(entry)
             entries_schema.append(_entry_to_schema(entry))
-    else:
-        # Agentic pipeline path — uses Nexus-discovered mods
-        for i, mod_data in enumerate(result.entries):
-            entry = ModlistEntry(
-                modlist_id=modlist.id,
-                nexus_mod_id=mod_data.get("nexus_mod_id"),
-                name=mod_data.get("name", "Unknown"),
-                author=mod_data.get("author"),
-                summary=mod_data.get("summary"),
-                reason=mod_data.get("reason"),
-                load_order=mod_data.get("load_order", i + 1),
-                enabled=True,
-                download_status="pending",
-                is_patch=mod_data.get("is_patch", False),
-                patches_mods=mod_data.get("patches_mods"),
-            )
-            db.add(entry)
-            entries_schema.append(_entry_to_schema(entry))
 
-        # Save knowledge flags
-        for flag_data in result.knowledge_flags:
-            flag = ModlistKnowledgeFlag(
-                modlist_id=modlist.id,
-                mod_a_name=flag_data["mod_a"],
-                mod_b_name=flag_data["mod_b"],
-                issue=flag_data["issue"],
-                severity=flag_data.get("severity", "warning"),
-            )
-            db.add(flag)
-
-    await db.commit()
-
-    # Build knowledge flags for response
-    knowledge_flags_schema = []
-    if result and result.knowledge_flags:
-        knowledge_flags_schema = [
-            UserKnowledgeFlag(
-                mod_a=f["mod_a"], mod_b=f["mod_b"],
-                issue=f["issue"], severity=f.get("severity", "warning"),
-            )
-            for f in result.knowledge_flags
-        ]
+        await db.commit()
+        knowledge_flags_schema = []
 
     return ModlistResponse(
         id=modlist.id,

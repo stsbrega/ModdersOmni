@@ -545,3 +545,399 @@ FALLOUT4_PLAYSTYLE_MODS = {
         ("Homemaker - Expanded Settlements", 5, "low"),
     ],
 }
+
+# ──────────────────────────────────────────────
+# Mod Build Phases — ordered generation steps
+# ──────────────────────────────────────────────
+
+SKYRIM_BUILD_PHASES = [
+    {
+        "phase_number": 1,
+        "name": "Essentials & Frameworks",
+        "description": "Core framework mods that other mods depend on. These must be installed first.",
+        "search_guidance": (
+            "Search for essential Skyrim modding framework mods. These are the backbone "
+            "that other mods require as dependencies. Focus on: script extenders, engine fixes, "
+            "address library, unofficial patches, and core resource frameworks. "
+            "Every modlist needs these regardless of playstyle."
+        ),
+        "rules": (
+            "Only add universally-needed framework mods. Do NOT add gameplay or visual mods here. "
+            "For SE, use SE-compatible versions. For AE, use AE-compatible versions. "
+            "Check mod descriptions for version compatibility before adding. "
+            "These mods should have very high endorsement counts (10k+) as they are community staples."
+        ),
+        "example_mods": "SKSE, Address Library for SKSE Plugins, SSE Engine Fixes, Unofficial Skyrim Special Edition Patch, PapyrusUtil",
+        "is_playstyle_driven": False,
+        "max_mods": 5,
+    },
+    {
+        "phase_number": 2,
+        "name": "UI & Interface",
+        "description": "User interface improvements, HUD mods, and mod configuration menus.",
+        "search_guidance": (
+            "Search for UI and interface mods for Skyrim. Focus on: inventory management, "
+            "HUD improvements, mod configuration menus (MCM), map improvements, "
+            "and quality-of-life interface changes. SkyUI is essential as many mods require it."
+        ),
+        "rules": (
+            "SkyUI is almost always required — add it first. "
+            "Interface mods should improve usability without being intrusive. "
+            "Avoid mods that dramatically change the aesthetic unless the playstyle calls for it. "
+            "Check that UI mods are compatible with each other."
+        ),
+        "example_mods": "SkyUI, MCM Helper, A Quality World Map, SkyHUD, moreHUD, TrueHUD",
+        "is_playstyle_driven": False,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 3,
+        "name": "Fixes & Bug Patches",
+        "description": "Community bug fixes beyond the unofficial patch. Stability and consistency improvements.",
+        "search_guidance": (
+            "Search for Skyrim bug fix and stability mods. Focus on: script fixes, "
+            "mesh fixes, NPC behavior fixes, quest fixes, animation fixes, and "
+            "engine-level stability patches. These improve the base game without changing gameplay."
+        ),
+        "rules": (
+            "Only add mods that fix genuine bugs or inconsistencies. "
+            "Do NOT add gameplay-changing mods here — those go in the Gameplay phase. "
+            "Prefer well-established fix compilations over individual micro-fixes. "
+            "Check for overlap with USSEP (avoid redundant fixes)."
+        ),
+        "example_mods": "Scrambled Bugs, Assorted mesh fixes, Unofficial Material Fix, powerofthree's Tweaks, Landscape Fixes For Grass Mods",
+        "is_playstyle_driven": False,
+        "max_mods": 5,
+    },
+    {
+        "phase_number": 4,
+        "name": "Foundation Textures & Meshes",
+        "description": "Base texture overhauls, mesh improvements, and landscape textures. Hardware-aware selections.",
+        "search_guidance": (
+            "Search for texture and mesh overhaul mods. Focus on: architecture textures, "
+            "landscape textures, static mesh improvements (SMIM), and large-scale visual overhauls. "
+            "Choose resolution based on user hardware: 1K for <4GB VRAM, 2K for 4-8GB, 4K for 8GB+. "
+            "AI-upscaled textures use more VRAM than hand-crafted ones of the same resolution."
+        ),
+        "rules": (
+            "CRITICAL: Match texture resolution to hardware. If VRAM < 4096MB, use 1K textures only. "
+            "If VRAM 4096-8192MB, use 2K textures. Only use 4K for 8GB+ VRAM. "
+            "Avoid AI-upscaled texture packs on lower-end hardware (they use disproportionate VRAM). "
+            "Prefer comprehensive overhauls over many small replacers to reduce conflicts. "
+            "Cathedral/Pfuscher/Skyrim Realistic Overhaul are common base overhauls."
+        ),
+        "example_mods": "Static Mesh Improvement Mod, Skyrim Realistic Overhaul, Cathedral Landscapes, Majestic Mountains, RUSTIC CLOTHING",
+        "is_playstyle_driven": False,
+        "max_mods": 8,
+    },
+    {
+        "phase_number": 5,
+        "name": "Animation & Physics",
+        "description": "Skeleton frameworks, movement animations, and physics improvements.",
+        "search_guidance": (
+            "Search for animation and physics mods. Focus on: skeleton frameworks (XP32), "
+            "movement animations, combat animations, physics mods, and animation frameworks. "
+            "A proper skeleton mod is the foundation for all other animation replacers."
+        ),
+        "rules": (
+            "XP32 Maximum Skeleton (XPMSSE) is the standard skeleton framework — include it. "
+            "Animation mods must be compatible with the skeleton being used. "
+            "For combat-focused playstyles, prioritize combat animations. "
+            "Physics mods (HDT-SMP, CBPC) require significant CPU/GPU overhead."
+        ),
+        "example_mods": "XP32 Maximum Skeleton Special Extended, Dynamic Animation Replacer, Nemesis Unlimited Behavior Engine, Realistic Ragdolls and Force",
+        "is_playstyle_driven": True,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 6,
+        "name": "Audio",
+        "description": "Sound effects, music, and audio improvements.",
+        "search_guidance": (
+            "Search for audio and sound mods. Focus on: immersive sound overhauls, "
+            "music replacers or additions, ambient sound improvements, and "
+            "specific sound effect improvements (combat, footsteps, weather)."
+        ),
+        "rules": (
+            "Audio mods generally have minimal performance impact. "
+            "Avoid multiple sound overhauls that edit the same categories (they will conflict). "
+            "Music mods are safe to add in any quantity. "
+            "Immersive sounds of Skyrim or Audio Overhaul for Skyrim are popular base options."
+        ),
+        "example_mods": "Immersive Sounds - Compendium, Audio Overhaul Skyrim, Sounds of Skyrim Complete, Musical Lore",
+        "is_playstyle_driven": False,
+        "max_mods": 3,
+    },
+    {
+        "phase_number": 7,
+        "name": "Gameplay & Playstyle",
+        "description": "The core gameplay modifications tailored to the user's chosen playstyle.",
+        "search_guidance": (
+            "Search for gameplay mods that match the user's playstyle. This is the most "
+            "important phase — these mods define the gameplay experience. "
+            "Cover: combat mechanics, skill systems, economy, crafting, AI behavior, "
+            "immersion features, and quest modifications. Search with playstyle-specific terms."
+        ),
+        "rules": (
+            "This phase is HEAVILY driven by the user's playstyle choice. "
+            "For Vanilla+: subtle improvements only (no overhauls). "
+            "For Survival: hunger/cold/fatigue/camping systems. "
+            "For Combat: combat overhauls, dodge mechanics, enemy AI. "
+            "For Magic: spell packs, enchanting overhauls, magical mechanics. "
+            "For Visual: skip this phase (few gameplay mods). "
+            "For Immersion: NPC behavior, economy, needs, consequences. "
+            "AVOID combining competing overhauls (e.g., two combat systems). "
+            "Always use get_mod_details to verify playstyle fit before adding."
+        ),
+        "example_mods": "Ordinator, Apocalypse Magic, Wildcat Combat, Campfire, Frostfall, iNeed, Morrowloot Ultimate, CBBE, Growl",
+        "is_playstyle_driven": True,
+        "max_mods": 10,
+    },
+    {
+        "phase_number": 8,
+        "name": "Locations & World",
+        "description": "City overhauls, new locations, and world-space additions.",
+        "search_guidance": (
+            "Search for location and world mods. Focus on: city overhauls, "
+            "town expansions, new worldspaces, and landmark improvements. "
+            "These add visual variety and exploration content."
+        ),
+        "rules": (
+            "Location overhauls can conflict with each other if they edit the same areas. "
+            "JK's Skyrim and Dawn of Skyrim are popular but can conflict — pick one style. "
+            "Large new worldspaces (e.g., Beyond Skyrim, Falskaar) add significant content but also storage. "
+            "Check storage budget before adding large worldspaces."
+        ),
+        "example_mods": "JK's Skyrim, Dawn of Skyrim, The Great Cities, Immersive College of Winterhold, Solitude Expansion",
+        "is_playstyle_driven": True,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 9,
+        "name": "Lighting & Weather",
+        "description": "Weather systems, lighting overhauls, and optional ENB/post-processing.",
+        "search_guidance": (
+            "Search for lighting and weather mods. Focus on: weather overhauls, "
+            "interior lighting improvements, and ENB presets (only for high-end hardware). "
+            "A good weather mod transforms the visual atmosphere."
+        ),
+        "rules": (
+            "CRITICAL HARDWARE CHECK: "
+            "If VRAM < 4096MB: Skip ENB entirely. Use only a lightweight weather mod. "
+            "If VRAM 4096-8192MB: Use a performance-friendly ENB or Reshade preset. "
+            "If VRAM > 8192MB: Full ENB preset is viable. "
+            "Only pick ONE weather overhaul (they are incompatible with each other). "
+            "ENB presets are designed for specific weather mods — check compatibility. "
+            "Reshade is a lighter alternative to ENB with less visual impact but much better performance."
+        ),
+        "example_mods": "Cathedral Weathers, Obsidian Weathers, Rudy ENB, Silent Horizons ENB, Lux, Window Shadows",
+        "is_playstyle_driven": False,
+        "max_mods": 3,
+    },
+    {
+        "phase_number": 10,
+        "name": "Compatibility Patches",
+        "description": "Conflict resolution patches between all previously added mods. Always the final phase.",
+        "search_guidance": (
+            "Review the complete modlist built so far and search for compatibility patches. "
+            "Check each mod's description page for listed patches and requirements. "
+            "Search Nexus for '[Mod A] [Mod B] patch' combinations. "
+            "Focus on mods that edit the same game systems."
+        ),
+        "rules": (
+            "Patches must load AFTER the mods they patch in the load order. "
+            "Not every mod pair needs a patch — only flag genuine conflicts. "
+            "Framework mods (SKSE, Address Library) don't need patches with each other. "
+            "Focus on: mods editing the same game records, two overhauls of the same system, "
+            "texture/mesh conflicts between visual mods. "
+            "If no patch exists for a real conflict, use flag_user_knowledge to warn the user."
+        ),
+        "example_mods": "Bash Patch, Conflict Resolution Patch, various mod-specific patches",
+        "is_playstyle_driven": False,
+        "max_mods": 8,
+    },
+]
+
+FALLOUT4_BUILD_PHASES = [
+    {
+        "phase_number": 1,
+        "name": "Essentials & Frameworks",
+        "description": "Core framework mods that other Fallout 4 mods depend on.",
+        "search_guidance": (
+            "Search for essential Fallout 4 framework mods. Focus on: F4SE (script extender), "
+            "Address Library, performance fixes, and core resource frameworks. "
+            "These are universal requirements regardless of playstyle."
+        ),
+        "rules": (
+            "For Standard (pre-Next-Gen): use classic F4SE and Buffout 4. "
+            "For Next-Gen: use Next-Gen compatible F4SE and Buffout 4 NG. "
+            "DO NOT mix Standard and Next-Gen versions of framework mods. "
+            "High FPS Physics Fix is essential for uncapping framerate safely."
+        ),
+        "example_mods": "F4SE, Address Library for F4SE Plugins, High FPS Physics Fix, Buffout 4",
+        "is_playstyle_driven": False,
+        "max_mods": 5,
+    },
+    {
+        "phase_number": 2,
+        "name": "Bug Fixes",
+        "description": "Community bug fixes and stability patches for the base game.",
+        "search_guidance": (
+            "Search for Fallout 4 bug fix mods. Focus on: unofficial patches (UFO4P), "
+            "engine fixes, NPC fixes, quest fixes, and stability improvements. "
+            "Prioritize well-established fix compilations."
+        ),
+        "rules": (
+            "UFO4P (Unofficial Fallout 4 Patch) is the essential base fix. "
+            "Avoid redundant fixes already covered by UFO4P. "
+            "Weapon Debris Crash Fix is only needed for Nvidia 20-series+ GPUs. "
+            "Previsibines Repair Pack can improve performance in specific areas."
+        ),
+        "example_mods": "Unofficial Fallout 4 Patch, Buffout 4, Weapon Mod Fixes, Sprint Stuttering Fix, Previsibines Repair Pack",
+        "is_playstyle_driven": False,
+        "max_mods": 6,
+    },
+    {
+        "phase_number": 3,
+        "name": "UI & Interface",
+        "description": "HUD improvements, Pip-Boy enhancements, and menu modifications.",
+        "search_guidance": (
+            "Search for Fallout 4 UI and interface mods. Focus on: HUD improvements, "
+            "Pip-Boy enhancements, dialogue interface, inventory sorting, "
+            "and quality-of-life interface changes."
+        ),
+        "rules": (
+            "DEF_UI/FallUI are popular comprehensive UI overhauls — pick one family. "
+            "Full Dialogue Interface restores full dialogue lines (very popular). "
+            "Check compatibility between UI mods — they often conflict."
+        ),
+        "example_mods": "DEF_UI, FallUI, Full Dialogue Interface, Better Console, Extended Dialogue Interface",
+        "is_playstyle_driven": False,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 4,
+        "name": "Tweaks & Quality of Life",
+        "description": "Small gameplay tweaks and quality-of-life improvements.",
+        "search_guidance": (
+            "Search for Fallout 4 quality-of-life and tweak mods. Focus on: "
+            "survival mode improvements, weapon holstering, reload animations, "
+            "crafting improvements, and small convenience mods."
+        ),
+        "rules": (
+            "Tweaks should improve convenience without fundamentally changing gameplay. "
+            "Classic Holstered Weapons is popular but may conflict with animation mods. "
+            "For survival playstyles, include mods that enhance Survival mode. "
+            "Prefer modular/configurable tweaks over rigid changes."
+        ),
+        "example_mods": "Classic Holstered Weapons, Bullet Counted Reload, Faster Workbench Exit, Simple Offence Suppression, Unlimited Survival Mode",
+        "is_playstyle_driven": True,
+        "max_mods": 5,
+    },
+    {
+        "phase_number": 5,
+        "name": "Foundation Textures",
+        "description": "Base texture improvements matched to user hardware.",
+        "search_guidance": (
+            "Search for Fallout 4 texture improvement mods. Focus on: "
+            "comprehensive texture overhauls, landscape textures, architecture textures, "
+            "and material fixes. Match resolution to hardware capability."
+        ),
+        "rules": (
+            "CRITICAL: Match texture resolution to hardware. "
+            "If VRAM < 4096MB: 1K textures only. "
+            "If VRAM 4096-8192MB: 2K textures. "
+            "If VRAM > 8192MB: 4K viable for key textures. "
+            "Avoid AI-upscaled textures on lower-end hardware. "
+            "Fallout 4 HD Overhaul and Vivid Fallout are popular base choices."
+        ),
+        "example_mods": "Vivid Fallout, FlaconOil's Retexture Project, Targeted Textures, Enhanced Vanilla Water",
+        "is_playstyle_driven": False,
+        "max_mods": 5,
+    },
+    {
+        "phase_number": 6,
+        "name": "Gameplay",
+        "description": "Core gameplay modifications tailored to the user's playstyle.",
+        "search_guidance": (
+            "Search for Fallout 4 gameplay mods matching the user's playstyle. "
+            "Cover: combat mechanics, loot balance, faction gameplay, power armor, "
+            "settlement building, companion improvements, and difficulty scaling."
+        ),
+        "rules": (
+            "This phase is HEAVILY driven by the user's playstyle choice. "
+            "For Vanilla+: subtle loot/economy tweaks only. "
+            "For Survival/Hardcore: damage overhauls, needs systems, scarcity. "
+            "For Combat: weapon balance, enemy AI, tactical combat. "
+            "For Settlement: settlement building expansions, Sim Settlements. "
+            "For Exploration: new encounters, fast travel tweaks, discovery rewards. "
+            "AVOID combining competing overhauls. "
+            "Encounter Zone Recalculation is good for level scaling."
+        ),
+        "example_mods": "Loot Logic and Reduction, Encounter Zone Recalculation, Legendaries They Can Use, Who's The General, SPARS",
+        "is_playstyle_driven": True,
+        "max_mods": 8,
+    },
+    {
+        "phase_number": 7,
+        "name": "Content & Quests",
+        "description": "New quests, faction expansions, and content additions.",
+        "search_guidance": (
+            "Search for Fallout 4 quest and content mods. Focus on: "
+            "new quests, faction expansions, companion mods, and world content additions. "
+            "Prioritize mods that integrate well with the base game."
+        ),
+        "rules": (
+            "Content mods should feel integrated with the base game, not jarring. "
+            "Check that new quest mods don't conflict with faction overhauls. "
+            "Large content mods (new worldspaces) consume significant storage — check budget. "
+            "You And What Army and similar faction mods enhance existing content."
+        ),
+        "example_mods": "You And What Army 2, Tales from the Commonwealth, Depravity, Outcasts and Remnants, Nuka-World Reborn",
+        "is_playstyle_driven": True,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 8,
+        "name": "Visuals & Lighting",
+        "description": "Lighting overhauls, particle effects, and weather improvements.",
+        "search_guidance": (
+            "Search for Fallout 4 visual and lighting mods. Focus on: "
+            "lighting overhauls, weather mods, particle patches, "
+            "and environmental visual improvements."
+        ),
+        "rules": (
+            "CRITICAL HARDWARE CHECK: "
+            "If VRAM < 4096MB: Skip ENB. Use only lightweight lighting. "
+            "If VRAM 4096-8192MB: Performance-friendly ENB or Reshade. "
+            "If VRAM > 8192MB: Full ENB viable. "
+            "Only ONE lighting overhaul (they are incompatible). "
+            "Lightweight Lighting is a good performance-friendly option. "
+            "Particle patches reduce glow effects and improve performance."
+        ),
+        "example_mods": "Lightweight Lighting, Fallout 4 Particle Patch, NAC X, True Storms, Ultra Interior Lighting",
+        "is_playstyle_driven": False,
+        "max_mods": 4,
+    },
+    {
+        "phase_number": 9,
+        "name": "Compatibility Patches",
+        "description": "Conflict resolution for all added mods. Always the final phase.",
+        "search_guidance": (
+            "Review the complete Fallout 4 modlist and search for compatibility patches. "
+            "Check each mod's description for listed patches. "
+            "Search for '[Mod A] [Mod B] patch' combinations. "
+            "Focus on mods that edit the same game records."
+        ),
+        "rules": (
+            "Patches must load AFTER the mods they patch. "
+            "Not every mod pair needs a patch — only flag genuine conflicts. "
+            "Framework mods don't need patches with each other. "
+            "UFO4P patches are especially common and important. "
+            "If no patch exists for a real conflict, use flag_user_knowledge."
+        ),
+        "example_mods": "Various mod-specific patches, combined patch files",
+        "is_playstyle_driven": False,
+        "max_mods": 6,
+    },
+]

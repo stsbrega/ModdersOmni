@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { GenerationService } from '../../../../core/services/generation.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { Playstyle } from '../../../../shared/models/game.model';
 import { HardwareSpecs } from '../../../../shared/models/specs.model';
@@ -598,6 +599,7 @@ export class PlaystyleSelectComponent implements OnInit {
   constructor(
     private api: ApiService,
     private authService: AuthService,
+    private generationService: GenerationService,
     private notifications: NotificationService,
     private router: Router,
   ) {}
@@ -727,8 +729,11 @@ export class PlaystyleSelectComponent implements OnInit {
       .map(([provider, api_key]) => ({ provider, api_key }));
 
     this.loading.set(true);
+
+    // Fire-and-redirect: POST /start returns immediately with a generation_id.
+    // We then navigate to the generation viewer which streams events via SSE.
     this.api
-      .generateModlist({
+      .startGeneration({
         game_id: this.gameId,
         playstyle_id: playstyleId,
         gpu: this.specs.gpu,
@@ -742,23 +747,20 @@ export class PlaystyleSelectComponent implements OnInit {
         llm_credentials: credentials,
       })
       .subscribe({
-        next: (modlist) => {
+        next: (response) => {
           this.loading.set(false);
-          if (modlist.used_fallback && modlist.generation_error) {
-            this.notifications.warning(
-              `AI generation failed: ${modlist.generation_error}. Showing curated fallback list.`
-            );
-          } else if (modlist.used_fallback) {
-            this.notifications.warning(
-              'AI generation returned no results. Showing curated fallback list.'
-            );
-          }
-          this.router.navigate(['/modlist', modlist.id]);
+
+          // Reset any stale generation state and open the SSE connection
+          this.generationService.reset();
+          this.generationService.connectToEvents(response.generation_id);
+
+          // Navigate to the real-time generation viewer
+          this.router.navigate(['/generate', response.generation_id]);
         },
         error: (err) => {
           this.loading.set(false);
           if (!err?.error?.detail && err?.status !== 0) {
-            this.notifications.error('Modlist generation failed. Check your API keys and try again.');
+            this.notifications.error('Failed to start generation. Check your API keys and try again.');
           }
         },
       });

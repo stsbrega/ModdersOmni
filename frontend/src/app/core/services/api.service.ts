@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { Game, Playstyle } from '../../shared/models/game.model';
 import { HardwareSpecs, SpecsParseResponse } from '../../shared/models/specs.model';
 import { Modlist, DownloadStatus, LlmProvider } from '../../shared/models/mod.model';
+import { GenerationStartResponse } from '../../shared/models/generation.model';
 
 @Injectable({
   providedIn: 'root',
@@ -44,6 +45,22 @@ export class ApiService {
     llm_credentials?: { provider: string; api_key: string; base_url?: string; model?: string }[];
   }): Observable<Modlist> {
     return this.http.post<Modlist>(`${this.baseUrl}/modlist/generate`, request);
+  }
+
+  startGeneration(request: {
+    game_id: number;
+    playstyle_id: number;
+    game_version?: string;
+    gpu?: string;
+    vram_mb?: number;
+    cpu?: string;
+    ram_gb?: number;
+    cpu_cores?: number;
+    cpu_speed_ghz?: number;
+    available_storage_gb?: number;
+    llm_credentials?: { provider: string; api_key: string; base_url?: string; model?: string }[];
+  }): Observable<GenerationStartResponse> {
+    return this.http.post<GenerationStartResponse>(`${this.baseUrl}/generation/start`, request);
   }
 
   getModlist(modlistId: string): Observable<Modlist> {

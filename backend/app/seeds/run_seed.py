@@ -14,6 +14,7 @@ from app.models.playstyle import Playstyle
 from app.models.mod import Mod
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.compatibility import CompatibilityRule
+from app.models.mod_build_phase import ModBuildPhase
 from app.seeds.seed_data import (
     GAMES,
     PLAYSTYLES,
@@ -23,6 +24,8 @@ from app.seeds.seed_data import (
     FALLOUT4_COMPATIBILITY,
     SKYRIM_PLAYSTYLE_MODS,
     FALLOUT4_PLAYSTYLE_MODS,
+    SKYRIM_BUILD_PHASES,
+    FALLOUT4_BUILD_PHASES,
 )
 
 
@@ -171,6 +174,28 @@ async def seed_playstyle_mods(
                 session.add(pm)
 
 
+async def seed_build_phases(
+    session: AsyncSession,
+    phase_list: list[dict],
+    game_id: int | None,
+):
+    """Seed mod build phases for a game."""
+    if not game_id:
+        return
+    for phase_data in phase_list:
+        existing = await session.execute(
+            select(ModBuildPhase).where(
+                ModBuildPhase.game_id == game_id,
+                ModBuildPhase.phase_number == phase_data["phase_number"],
+            )
+        )
+        if not existing.scalar_one_or_none():
+            phase = ModBuildPhase(game_id=game_id, **phase_data)
+            session.add(phase)
+    await session.flush()
+    print(f"  Phases: {len(phase_list)}")
+
+
 async def main():
     print("Creating database tables...")
     async with engine.begin() as conn:
@@ -210,6 +235,16 @@ async def main():
         print("Seeding Fallout 4 playstyle-mod assignments...")
         await seed_playstyle_mods(
             session, FALLOUT4_PLAYSTYLE_MODS, ps_map.get("fallout4", {}), fo4_mod_map
+        )
+
+        print("Seeding Skyrim build phases...")
+        await seed_build_phases(
+            session, SKYRIM_BUILD_PHASES, game_map.get("skyrimse")
+        )
+
+        print("Seeding Fallout 4 build phases...")
+        await seed_build_phases(
+            session, FALLOUT4_BUILD_PHASES, game_map.get("fallout4")
         )
 
         await session.commit()
