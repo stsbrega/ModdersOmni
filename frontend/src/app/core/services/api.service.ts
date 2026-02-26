@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Game, Playstyle } from '../../shared/models/game.model';
 import { HardwareSpecs, SpecsParseResponse } from '../../shared/models/specs.model';
-import { Modlist, DownloadStatus } from '../../shared/models/mod.model';
+import { Modlist, DownloadStatus, LlmProvider } from '../../shared/models/mod.model';
 
 @Injectable({
   providedIn: 'root',
@@ -41,7 +41,7 @@ export class ApiService {
     cpu_cores?: number;
     cpu_speed_ghz?: number;
     available_storage_gb?: number;
-    llm_credentials?: { provider: string; api_key: string }[];
+    llm_credentials?: { provider: string; api_key: string; base_url?: string; model?: string }[];
   }): Observable<Modlist> {
     return this.http.post<Modlist>(`${this.baseUrl}/modlist/generate`, request);
   }
@@ -62,6 +62,20 @@ export class ApiService {
     return this.http.get<DownloadStatus[]>(
       `${this.baseUrl}/downloads/${modlistId}/status`
     );
+  }
+
+  // LLM Providers (public)
+  getLlmProviders(): Observable<LlmProvider[]> {
+    return this.http.get<LlmProvider[]>(`${this.baseUrl}/settings/llm-providers`);
+  }
+
+  // LLM API Keys (auth required)
+  getLlmKeys(): Observable<Record<string, string>> {
+    return this.http.get<Record<string, string>>(`${this.baseUrl}/settings/llm-keys/raw`);
+  }
+
+  saveLlmKeys(keys: Record<string, string>): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/settings/llm-keys`, keys);
   }
 
   // Settings

@@ -3,8 +3,10 @@ import uuid
 
 
 class LLMCredential(BaseModel):
-    provider: str  # anthropic, openai, gemini, groq, together
+    provider: str  # provider ID from registry, or custom ID
     api_key: str
+    base_url: str | None = None  # Required for custom OpenAI-compatible providers
+    model: str | None = None  # Override the registry default model
 
 
 class ModlistGenerateRequest(BaseModel):

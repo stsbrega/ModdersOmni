@@ -6,6 +6,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { Playstyle } from '../../../../shared/models/game.model';
 import { HardwareSpecs } from '../../../../shared/models/specs.model';
+import { LlmProvider } from '../../../../shared/models/mod.model';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
 @Component({
@@ -62,7 +63,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
         }
       </div>
 
-      <div class="ai-provider-section">
+      <div class="ai-provider-section" [class.pending-highlight]="pendingGenerate()">
         <div class="provider-header" (click)="providerExpanded.set(!providerExpanded())">
           <div class="provider-label">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -81,37 +82,43 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 
         @if (providerExpanded()) {
           <div class="provider-body">
-            <p class="provider-desc">
-              Enter API keys for one or more providers. If one hits a rate limit or runs out of tokens, the next will be tried automatically.
-            </p>
+            @if (pendingGenerate()) {
+              <p class="pending-prompt">
+                Enter at least one API key below, then generation will start automatically.
+              </p>
+            } @else {
+              <p class="provider-desc">
+                Enter API keys for one or more providers. If one hits a rate limit, the next will be tried automatically.
+              </p>
+            }
 
             <div class="provider-list">
-              @for (p of providers; track p.value) {
-                <div class="provider-row" [class.has-key]="getKey(p.value)">
+              @for (p of providers(); track p.id) {
+                <div class="provider-row" [class.has-key]="getKey(p.id)">
                   <div class="provider-info">
                     <div class="provider-status">
-                      @if (getKey(p.value)) {
+                      @if (getKey(p.id)) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                           <polyline points="20 6 9 17 4 12"/>
                         </svg>
                       }
                     </div>
                     <div>
-                      <span class="provider-name">{{ p.label }}</span>
+                      <span class="provider-name">{{ p.name }}</span>
                       <span class="provider-model">{{ p.model }}</span>
                     </div>
                   </div>
                   <div class="key-input-wrap">
                     <input
-                      [type]="isKeyVisible(p.value) ? 'text' : 'password'"
-                      [value]="getKey(p.value)"
-                      (input)="onKeyInput(p.value, $event)"
-                      [placeholder]="p.placeholder"
+                      [type]="isKeyVisible(p.id) ? 'text' : 'password'"
+                      [value]="getKey(p.id)"
+                      (input)="onKeyInput(p.id, $event)"
+                      [placeholder]="p.placeholder || 'API key'"
                       autocomplete="off"
                       spellcheck="false"
                     />
-                    <button class="key-toggle" (click)="toggleKeyVisibility(p.value)" type="button" tabindex="-1">
-                      @if (isKeyVisible(p.value)) {
+                    <button class="key-toggle" (click)="toggleKeyVisibility(p.id)" type="button" tabindex="-1">
+                      @if (isKeyVisible(p.id)) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                           <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
                           <line x1="1" y1="1" x2="23" y2="23"/>
@@ -124,7 +131,13 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
                       }
                     </button>
                   </div>
-                  <span class="key-hint">{{ p.hint }}</span>
+                  <span class="key-hint">{{ p.hint_url }}</span>
+                </div>
+              }
+              @if (providers().length === 0) {
+                <div class="loading-state">
+                  <span class="load-spinner"></span>
+                  Loading providers...
                 </div>
               }
             </div>
@@ -142,7 +155,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
         <button
           class="btn-primary"
           (click)="generate()"
-          [disabled]="!selectedId() || configuredCount() === 0 || loading()"
+          [disabled]="!selectedId() || loading()"
         >
           @if (loading()) {
             <span class="btn-spinner"></span>
@@ -327,6 +340,10 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       border-radius: 10px;
       margin-bottom: 1.5rem;
       overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .ai-provider-section.pending-highlight {
+      border-color: var(--color-gold);
     }
     .provider-header {
       display: flex;
@@ -373,6 +390,13 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       color: var(--color-text-muted);
       line-height: 1.5;
       margin: 0 0 1rem;
+    }
+    .pending-prompt {
+      font-size: 0.8125rem;
+      color: var(--color-gold);
+      line-height: 1.5;
+      margin: 0 0 1rem;
+      font-weight: 500;
     }
 
     /* Provider list (vertical rows) */
@@ -478,20 +502,16 @@ export class PlaystyleSelectComponent implements OnInit {
   selectedId = signal<number | null>(null);
   loading = signal(false);
 
-  // AI Provider state — keys stored per-provider
+  // AI Provider state
+  providers = signal<LlmProvider[]>([]);
   providerExpanded = signal(true);
   providerKeys = signal<Record<string, string>>({});
   visibleKeys = signal<Set<string>>(new Set());
+  pendingGenerate = signal(false);
 
   configuredCount = computed(() =>
     Object.values(this.providerKeys()).filter(k => k.length > 0).length
   );
-
-  providers = [
-    { value: 'anthropic', label: 'Anthropic', model: 'Claude Sonnet 4', placeholder: 'sk-ant-...', hint: 'console.anthropic.com' },
-    { value: 'openai', label: 'OpenAI', model: 'GPT-4o', placeholder: 'sk-...', hint: 'platform.openai.com' },
-    { value: 'gemini', label: 'Google Gemini', model: 'Gemini 2.0 Flash', placeholder: 'AIza...', hint: 'aistudio.google.com' },
-  ];
 
   constructor(
     private api: ApiService,
@@ -506,24 +526,53 @@ export class PlaystyleSelectComponent implements OnInit {
       error: () => {},
     });
 
-    // Restore saved keys from localStorage
+    // Load provider registry from API
+    this.api.getLlmProviders().subscribe({
+      next: (providers) => this.providers.set(providers),
+      error: () => {},
+    });
+
+    // Restore keys: profile (if logged in) takes priority, then localStorage
+    let localKeys: Record<string, string> = {};
     try {
       const saved = localStorage.getItem('llm_keys');
       if (saved) {
-        const keys = JSON.parse(saved);
-        if (keys && typeof keys === 'object') {
-          this.providerKeys.set(keys);
-          // Auto-collapse if at least one key is saved
-          if (Object.values(keys).some((k: any) => k?.length > 0)) {
-            this.providerExpanded.set(false);
-          }
-        }
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') localKeys = parsed;
       }
     } catch { /* ignore corrupt localStorage */ }
+
+    if (this.authService.isLoggedIn()) {
+      this.api.getLlmKeys().subscribe({
+        next: (profileKeys) => {
+          // Merge: profile keys override localStorage
+          const merged = { ...localKeys, ...profileKeys };
+          this.providerKeys.set(merged);
+          // Sync merged keys back to localStorage
+          this.persistToLocalStorage(merged);
+          if (Object.values(merged).some(k => k?.length > 0)) {
+            this.providerExpanded.set(false);
+          }
+        },
+        error: () => {
+          // Profile load failed — use localStorage only
+          this.providerKeys.set(localKeys);
+          if (Object.values(localKeys).some(k => k?.length > 0)) {
+            this.providerExpanded.set(false);
+          }
+        },
+      });
+    } else {
+      this.providerKeys.set(localKeys);
+      if (Object.values(localKeys).some(k => k?.length > 0)) {
+        this.providerExpanded.set(false);
+      }
+    }
   }
 
   select(id: number): void {
     this.selectedId.set(id);
+    this.pendingGenerate.set(false);
   }
 
   getKey(provider: string): string {
@@ -534,12 +583,23 @@ export class PlaystyleSelectComponent implements OnInit {
     const value = (event.target as HTMLInputElement).value;
     const updated = { ...this.providerKeys(), [provider]: value };
     this.providerKeys.set(updated);
-    // Persist — only store non-empty keys
-    const toSave: Record<string, string> = {};
-    for (const [k, v] of Object.entries(updated)) {
-      if (v) toSave[k] = v;
+
+    // Persist to localStorage
+    this.persistToLocalStorage(updated);
+
+    // Persist to profile (fire-and-forget)
+    if (this.authService.isLoggedIn()) {
+      this.api.saveLlmKeys({ [provider]: value }).subscribe({
+        error: () => {},  // Silent — localStorage is the primary backup
+      });
     }
-    localStorage.setItem('llm_keys', JSON.stringify(toSave));
+
+    // Auto-resume: if user was waiting to generate and now has keys
+    if (this.pendingGenerate() && this.configuredCount() > 0) {
+      this.pendingGenerate.set(false);
+      // Small delay so the UI updates before the generate call
+      setTimeout(() => this.generate(), 100);
+    }
   }
 
   isKeyVisible(provider: string): boolean {
@@ -561,7 +621,7 @@ export class PlaystyleSelectComponent implements OnInit {
     if (!playstyleId) return;
 
     if (this.configuredCount() === 0) {
-      this.notifications.info('Enter at least one AI provider API key');
+      this.pendingGenerate.set(true);
       this.providerExpanded.set(true);
       return;
     }
@@ -574,10 +634,11 @@ export class PlaystyleSelectComponent implements OnInit {
       return;
     }
 
-    // Build credentials list from all configured providers (in display order)
-    const credentials = this.providers
-      .filter(p => this.getKey(p.value).length > 0)
-      .map(p => ({ provider: p.value, api_key: this.getKey(p.value) }));
+    // Build credentials list from all configured providers
+    const allKeys = this.providerKeys();
+    const credentials = Object.entries(allKeys)
+      .filter(([, key]) => key.length > 0)
+      .map(([provider, api_key]) => ({ provider, api_key }));
 
     this.loading.set(true);
     this.api
@@ -610,12 +671,19 @@ export class PlaystyleSelectComponent implements OnInit {
         },
         error: (err) => {
           this.loading.set(false);
-          // The error interceptor already shows a toast, but add context if missing
           if (!err?.error?.detail && err?.status !== 0) {
             this.notifications.error('Modlist generation failed. Check your API keys and try again.');
           }
         },
       });
+  }
+
+  private persistToLocalStorage(keys: Record<string, string>): void {
+    const toSave: Record<string, string> = {};
+    for (const [k, v] of Object.entries(keys)) {
+      if (v) toSave[k] = v;
+    }
+    localStorage.setItem('llm_keys', JSON.stringify(toSave));
   }
 
   private getMaxFreeStorageGb(): number | undefined {

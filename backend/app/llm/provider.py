@@ -238,87 +238,81 @@ class AnthropicProvider(LLMProvider):
 
 
 class LLMProviderFactory:
-    """Factory to create LLM providers based on configuration."""
+    """Factory to create LLM providers based on configuration or registry."""
 
     @staticmethod
     def create(provider_name: str | None = None) -> LLMProvider:
+        """Create provider using server-side env-var credentials."""
+        from app.llm.registry import get_provider
+
         settings = get_settings()
         name = provider_name or settings.llm_provider
 
+        # Ollama is a special local-only case not in the public registry
         if name == "ollama":
             return OpenAICompatibleProvider(
                 base_url=settings.ollama_base_url,
-                api_key="ollama",  # Ollama doesn't require a real key
+                api_key="ollama",
                 model=settings.ollama_model,
             )
-        elif name == "groq":
+
+        # Try registry lookup — gets base_url and type
+        entry = get_provider(name)
+        if entry:
+            # Read API key from env-var settings (e.g. settings.groq_api_key)
+            key_attr = f"{name}_api_key"
+            api_key = getattr(settings, key_attr, "")
+            model_attr = f"{name}_model"
+            model = getattr(settings, model_attr, entry["model"])
+
+            if entry["type"] == "anthropic":
+                return AnthropicProvider(api_key=api_key, model=model)
             return OpenAICompatibleProvider(
-                base_url="https://api.groq.com/openai/v1",
-                api_key=settings.groq_api_key,
-                model=settings.groq_model,
+                base_url=entry["base_url"], api_key=api_key, model=model,
             )
-        elif name == "together":
-            return OpenAICompatibleProvider(
-                base_url="https://api.together.xyz/v1",
-                api_key=settings.together_api_key,
-                model=settings.together_model,
-            )
-        elif name == "huggingface":
+
+        # Legacy: huggingface (in settings but not public registry)
+        if name == "huggingface":
             return OpenAICompatibleProvider(
                 base_url="https://router.huggingface.co/v1",
                 api_key=settings.huggingface_api_key,
                 model=settings.huggingface_model,
             )
-        elif name == "anthropic":
-            return AnthropicProvider(
-                api_key=settings.anthropic_api_key,
-                model=settings.anthropic_model,
-            )
-        elif name == "openai":
-            return OpenAICompatibleProvider(
-                base_url="https://api.openai.com/v1",
-                api_key=settings.openai_api_key,
-                model=settings.openai_model,
-            )
-        elif name == "gemini":
-            return OpenAICompatibleProvider(
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                api_key=settings.gemini_api_key,
-                model=settings.gemini_model,
-            )
-        else:
-            raise ValueError(f"Unknown LLM provider: {name}")
+
+        raise ValueError(f"Unknown LLM provider: {name}")
 
     @staticmethod
-    def create_from_request(provider_name: str, api_key: str) -> LLMProvider:
-        """Create a provider using per-request user-supplied credentials."""
-        settings = get_settings()
+    def create_from_request(
+        provider_id: str,
+        api_key: str,
+        base_url: str | None = None,
+        model: str | None = None,
+    ) -> LLMProvider:
+        """Create a provider using per-request user-supplied credentials.
 
-        if provider_name == "anthropic":
-            return AnthropicProvider(api_key=api_key, model=settings.anthropic_model)
-        elif provider_name == "openai":
+        For known providers, only provider_id + api_key are needed.
+        For custom providers, base_url (and optionally model) must be supplied.
+        """
+        from app.llm.registry import get_provider
+
+        entry = get_provider(provider_id)
+
+        if entry:
+            actual_model = model or entry["model"]
+            if entry["type"] == "anthropic":
+                return AnthropicProvider(api_key=api_key, model=actual_model)
             return OpenAICompatibleProvider(
-                base_url="https://api.openai.com/v1",
+                base_url=base_url or entry["base_url"],
                 api_key=api_key,
-                model=settings.openai_model,
+                model=actual_model,
             )
-        elif provider_name == "gemini":
+
+        # Custom / unknown provider — requires base_url
+        if base_url:
             return OpenAICompatibleProvider(
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                base_url=base_url,
                 api_key=api_key,
-                model=settings.gemini_model,
+                model=model or "default",
             )
-        elif provider_name == "groq":
-            return OpenAICompatibleProvider(
-                base_url="https://api.groq.com/openai/v1",
-                api_key=api_key,
-                model=settings.groq_model,
-            )
-        elif provider_name == "together":
-            return OpenAICompatibleProvider(
-                base_url="https://api.together.xyz/v1",
-                api_key=api_key,
-                model=settings.together_model,
-            )
-        else:
-            raise ValueError(f"Unsupported provider for user-supplied key: {provider_name}")
+
+        raise ValueError(f"Unknown provider '{provider_id}' and no base_url supplied")

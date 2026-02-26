@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,6 +38,9 @@ class UserSettings(Base):
     )
     custom_source_api_url: Mapped[str] = mapped_column(String(255), default="")
     custom_source_api_key: Mapped[str] = mapped_column(String(255), default="")
+
+    # Unified JSON store for all LLM API keys: {"provider_id": "api_key", ...}
+    llm_api_keys: Mapped[dict] = mapped_column(JSON, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

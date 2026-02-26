@@ -499,7 +499,10 @@ async def generate_modlist(
     for cred in request.llm_credentials:
         try:
             providers_to_try.append(
-                LLMProviderFactory.create_from_request(cred.provider, cred.api_key)
+                LLMProviderFactory.create_from_request(
+                    cred.provider, cred.api_key,
+                    base_url=cred.base_url, model=cred.model,
+                )
             )
         except ValueError:
             logger.warning(f"Skipping unknown provider: {cred.provider}")

@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
+from app.llm.registry import get_public_registry
 from app.models.user import User
 from app.models.user_settings import UserSettings
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,78 @@ async def _get_or_create_settings(
     await db.refresh(user, ["settings"])
     return settings_row
 
+
+# ── Provider Registry (public, no auth) ──────────────────────
+
+@router.get("/llm-providers")
+async def list_llm_providers():
+    """Return the list of supported LLM providers for frontend rendering."""
+    return get_public_registry()
+
+
+# ── LLM API Keys (auth required) ─────────────────────────────
+
+@router.get("/llm-keys")
+async def get_llm_keys(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the user's saved LLM API keys (provider_id → masked key)."""
+    settings_row = await _get_or_create_settings(current_user, db)
+    await db.commit()
+    keys: dict = settings_row.llm_api_keys or {}
+    # Mask keys for security: show only first 6 + last 4 chars
+    masked = {}
+    for provider_id, key in keys.items():
+        if isinstance(key, str) and len(key) > 12:
+            masked[provider_id] = key[:6] + "..." + key[-4:]
+        elif isinstance(key, str) and key:
+            masked[provider_id] = "***"
+        # Skip empty keys
+    return masked
+
+
+@router.get("/llm-keys/raw")
+async def get_llm_keys_raw(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return unmasked keys — used by the setup flow to pre-populate inputs."""
+    settings_row = await _get_or_create_settings(current_user, db)
+    await db.commit()
+    keys: dict = settings_row.llm_api_keys or {}
+    # Only return non-empty keys
+    return {k: v for k, v in keys.items() if isinstance(v, str) and v}
+
+
+@router.patch("/llm-keys")
+async def patch_llm_keys(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Merge submitted keys into the user's llm_api_keys JSON.
+
+    - Non-empty string values are upserted.
+    - Empty string values remove that provider's key.
+    """
+    settings_row = await _get_or_create_settings(current_user, db)
+    current_keys: dict = dict(settings_row.llm_api_keys or {})
+
+    for provider_id, api_key in data.items():
+        if not isinstance(api_key, str):
+            continue
+        if api_key:
+            current_keys[provider_id] = api_key
+        else:
+            current_keys.pop(provider_id, None)
+
+    settings_row.llm_api_keys = current_keys
+    await db.commit()
+    return {"status": "ok", "keys_saved": len(current_keys)}
+
+
+# ── Full Settings (existing) ─────────────────────────────────
 
 @router.get("/", response_model=AppSettings)
 async def get_app_settings(

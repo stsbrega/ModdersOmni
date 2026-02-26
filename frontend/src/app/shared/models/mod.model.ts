@@ -31,6 +31,14 @@ export interface Modlist {
   generation_error?: string;
 }
 
+export interface LlmProvider {
+  id: string;
+  name: string;
+  model: string;
+  placeholder: string;
+  hint_url: string;
+}
+
 export interface DownloadStatus {
   mod_id: number;
   name: string;
