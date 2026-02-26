@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
@@ -28,6 +28,7 @@ class Modlist(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     entries: Mapped[list["ModlistEntry"]] = relationship(back_populates="modlist")
+    knowledge_flags: Mapped[list["ModlistKnowledgeFlag"]] = relationship(back_populates="modlist")
     user: Mapped["User | None"] = relationship(back_populates="modlists")  # noqa: F821
 
 
@@ -38,9 +39,34 @@ class ModlistEntry(Base):
     modlist_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("modlists.id")
     )
-    mod_id: Mapped[int] = mapped_column(ForeignKey("mods.id"))
+    # mod_id is nullable — Nexus-discovered mods may not be in our mods table
+    mod_id: Mapped[int | None] = mapped_column(ForeignKey("mods.id"), nullable=True)
+    nexus_mod_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Denormalized fields so we don't need the mods FK for display
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    author: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     load_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     download_status: Mapped[str] = mapped_column(String(20), default="pending")
+    is_patch: Mapped[bool] = mapped_column(Boolean, default=False)
+    patches_mods: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    compatibility_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     modlist: Mapped["Modlist"] = relationship(back_populates="entries")
+
+
+class ModlistKnowledgeFlag(Base):
+    __tablename__ = "modlist_knowledge_flags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    modlist_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("modlists.id")
+    )
+    mod_a_name: Mapped[str] = mapped_column(String(255))
+    mod_b_name: Mapped[str] = mapped_column(String(255))
+    issue: Mapped[str] = mapped_column(Text)
+    severity: Mapped[str] = mapped_column(String(20))  # "warning" or "critical"
+
+    modlist: Mapped["Modlist"] = relationship(back_populates="knowledge_flags")

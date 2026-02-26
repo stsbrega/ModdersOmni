@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, computed, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { ApiService } from '../../core/services/api.service';
@@ -143,14 +143,6 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
           }
           @case ('hardware') {
             <div class="tab-panel" @fadeIn>
-              @if (hardwareTier) {
-                <div class="tier-badge-row">
-                  <span class="tier-badge" [class]="'tier-' + hardwareTier.toLowerCase()">
-                    {{ hardwareTier }} TIER
-                  </span>
-                </div>
-              }
-
               <!-- Auto-Detect Section -->
               <div class="panel-section">
                 <h3>Auto-Detect</h3>
@@ -238,6 +230,22 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                 <h3>CPU Model</h3>
                 <input type="text" class="input" [(ngModel)]="cpuModel" placeholder="e.g. AMD Ryzen 7 7800X3D">
               </div>
+              @if (storageDrives) {
+                <div class="panel-section">
+                  <h3>Storage Drives</h3>
+                  <div class="drives-list">
+                    @for (drive of parsedDrives(); track drive.letter) {
+                      <div class="drive-item">
+                        <span class="drive-letter">{{ drive.letter }}</span>
+                        <div class="drive-bar-container">
+                          <div class="drive-bar" [style.width.%]="drive.usedPct"></div>
+                        </div>
+                        <span class="drive-info">{{ drive.freeGb }} GB free / {{ drive.totalGb }} GB</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
               <div class="hw-summary">
                 <h4>Hardware Summary</h4>
                 <div class="hw-grid">
@@ -257,6 +265,12 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                     <span class="hw-label">CPU</span>
                     <span class="hw-val">{{ cpuModel || 'Not set' }}</span>
                   </div>
+                  @if (storageDrives) {
+                    <div class="hw-item" style="grid-column: 1 / -1;">
+                      <span class="hw-label">Storage</span>
+                      <span class="hw-val">{{ storageDrives }}</span>
+                    </div>
+                  }
                 </div>
               </div>
             </div>
@@ -612,23 +626,42 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
     }
     .btn-disconnect:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* Tier Badge */
-    .tier-badge-row {
+    /* Storage Drives */
+    .drives-list {
       display: flex;
-      justify-content: center;
-      margin-bottom: 1rem;
+      flex-direction: column;
+      gap: 0.5rem;
     }
-    .tier-badge {
-      padding: 0.375rem 1.25rem;
-      border-radius: 100px;
-      font-weight: 700;
+    .drive-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .drive-letter {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      min-width: 24px;
+      color: var(--color-gold);
+    }
+    .drive-bar-container {
+      flex: 1;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .drive-bar {
+      height: 100%;
+      background: var(--color-gold);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    .drive-info {
       font-size: 0.75rem;
-      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      min-width: 140px;
+      text-align: right;
     }
-    .tier-low { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); }
-    .tier-mid { background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25); }
-    .tier-high { background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); }
-    .tier-ultra { background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25); }
 
     /* Scan */
     .scan-textarea {
@@ -907,10 +940,24 @@ export class SettingsComponent implements OnInit {
   cpuModel = '';
   hardwareTier = '';
   hardwareRawText = '';
+  storageDrives = '';
+  storageDrivesSignal = signal('');
+  parsedDrives = computed(() => {
+    const raw = this.storageDrivesSignal();
+    if (!raw) return [];
+    return raw.split(',').map(part => {
+      const m = part.trim().match(/^([A-Z]:)\s*(\d+)\s*GB\s*free\s*\/\s*(\d+)\s*GB$/i);
+      if (!m) return null;
+      const freeGb = parseInt(m[2]);
+      const totalGb = parseInt(m[3]);
+      const usedPct = totalGb > 0 ? Math.round(((totalGb - freeGb) / totalGb) * 100) : 0;
+      return { letter: m[1], freeGb, totalGb, usedPct };
+    }).filter((d): d is NonNullable<typeof d> => d !== null);
+  });
   scanLoading = signal(false);
   showHelpGuide = signal(false);
   commandCopied = signal(false);
-  powershellCommand = `$g=(Get-CimInstance Win32_VideoController|Select -First 1).Name;$c=(Get-CimInstance Win32_Processor).Name;$r=[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB);$n=(Get-CimInstance Win32_Processor).NumberOfCores;$t=(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors;"GPU: $g\`nCPU: $c\`nCores: $n cores / $t threads\`nRAM: $r GB"`;
+  powershellCommand = `$gpu=Get-CimInstance Win32_VideoController|Sort-Object AdapterRAM -Descending|Select -First 1;$g=$gpu.Name;try{$v=[math]::Round((nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>$null|Select -First 1)/1024)}catch{$v=0};if(!$v){$v=[math]::Round($gpu.AdapterRAM/1GB)};$c=(Get-CimInstance Win32_Processor).Name;$r=[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB);$n=(Get-CimInstance Win32_Processor).NumberOfCores;$t=(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors;$d=(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"|ForEach-Object{"$($_.DeviceID) $([math]::Round($_.FreeSpace/1GB))GB free / $([math]::Round($_.Size/1GB))GB"}) -join ", ";"GPU: $g\`nVRAM: $v GB\`nCPU: $c\`nCores: $n cores / $t threads\`nRAM: $r GB\`nDrives: $d"`;
 
   // Preferences
   gameOptions = [
@@ -1019,6 +1066,10 @@ export class SettingsComponent implements OnInit {
       if (response.specs.cpu) this.cpuModel = response.specs.cpu;
       if (response.specs.ram_gb) this.ramGb = response.specs.ram_gb;
       if (response.specs.vram_mb) this.vramGb = Math.round(response.specs.vram_mb / 1024);
+      if (response.specs.storage_drives) {
+        this.storageDrives = response.specs.storage_drives;
+        this.storageDrivesSignal.set(response.specs.storage_drives);
+      }
     }
     if (response.tier) this.hardwareTier = response.tier;
   }
@@ -1043,6 +1094,8 @@ export class SettingsComponent implements OnInit {
           this.vramGb = hw.vram_mb ? Math.round(hw.vram_mb / 1024) : 8;
           this.hardwareTier = hw.hardware_tier || '';
           this.hardwareRawText = hw.hardware_raw_text || '';
+          this.storageDrives = hw.storage_drives || '';
+          this.storageDrivesSignal.set(hw.storage_drives || '');
         }
       },
       error: () => {},
@@ -1113,6 +1166,7 @@ export class SettingsComponent implements OnInit {
       ram_gb: this.ramGb,
       vram_mb: this.vramGb * 1024,
       hardware_raw_text: this.hardwareRawText || undefined,
+      storage_drives: this.storageDrives || undefined,
     }).subscribe({
       next: (hw) => {
         this.hardwareTier = hw.hardware_tier || '';

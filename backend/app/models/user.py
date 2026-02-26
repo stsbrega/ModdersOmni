@@ -31,6 +31,7 @@ class User(Base):
     cpu_speed_ghz: Mapped[float | None] = mapped_column(Float, nullable=True)
     hardware_tier: Mapped[str | None] = mapped_column(String(10), nullable=True)
     hardware_raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_drives: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

@@ -5,6 +5,7 @@ export interface HardwareSpecs {
   ram_gb?: number;
   cpu_cores?: number;
   cpu_speed_ghz?: number;
+  storage_drives?: string;
 }
 
 export interface TierScores {

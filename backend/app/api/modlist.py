@@ -8,17 +8,48 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.game import Game
 from app.models.mod import Mod
-from app.models.modlist import Modlist, ModlistEntry
+from app.models.modlist import Modlist, ModlistEntry, ModlistKnowledgeFlag
 from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.user import User
-from app.schemas.modlist import ModEntry, ModlistGenerateRequest, ModlistResponse
-from app.services.modlist_generator import generate_modlist as run_generation, _is_version_compatible
+from app.schemas.modlist import (
+    ModEntry, ModlistGenerateRequest, ModlistResponse, UserKnowledgeFlag,
+)
+from app.services.modlist_generator import (
+    generate_modlist as run_generation, GenerationResult, _is_version_compatible,
+)
 from app.api.deps import get_current_user, get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _entry_to_schema(entry: ModlistEntry) -> ModEntry:
+    """Convert a DB ModlistEntry to the API schema, using denormalized fields."""
+    return ModEntry(
+        mod_id=entry.mod_id,
+        nexus_mod_id=entry.nexus_mod_id,
+        name=entry.name or "Unknown",
+        author=entry.author,
+        summary=entry.summary,
+        reason=entry.reason,
+        load_order=entry.load_order,
+        enabled=entry.enabled,
+        download_status=entry.download_status,
+        is_patch=entry.is_patch,
+        patches_mods=entry.patches_mods,
+        compatibility_notes=entry.compatibility_notes,
+    )
+
+
+def _flag_to_schema(flag: ModlistKnowledgeFlag) -> UserKnowledgeFlag:
+    return UserKnowledgeFlag(
+        mod_a=flag.mod_a_name,
+        mod_b=flag.mod_b_name,
+        issue=flag.issue,
+        severity=flag.severity,
+    )
 
 
 @router.post("/generate", response_model=ModlistResponse)
@@ -36,17 +67,20 @@ async def generate_modlist(
     if not playstyle:
         raise HTTPException(status_code=404, detail="Playstyle not found")
 
+    result: GenerationResult | None = None
     try:
-        # Run the AI generation pipeline
-        generated_mods = await run_generation(db, request)
+        result = await run_generation(db, request)
     except Exception as e:
         logger.error(f"LLM generation failed: {e}")
-        # Fallback: return curated mods from the database without LLM
-        generated_mods = await _fallback_modlist(
+
+    # Determine if we're using fallback
+    use_fallback = result is None or not result.entries
+    if use_fallback:
+        fallback_mods = await _fallback_modlist(
             db, request.playstyle_id, request.vram_mb, request.game_version
         )
 
-    # Save the modlist to the database
+    # Save the modlist
     modlist = Modlist(
         game_id=request.game_id,
         playstyle_id=request.playstyle_id,
@@ -54,26 +88,20 @@ async def generate_modlist(
         cpu_model=request.cpu,
         ram_gb=request.ram_gb,
         vram_mb=request.vram_mb,
-        llm_provider="fallback" if not generated_mods else None,
+        llm_provider=(result.llm_provider if result else "fallback") if not use_fallback else "fallback",
         user_id=current_user.id if current_user else None,
     )
     db.add(modlist)
     await db.flush()
 
-    entries = []
-    for i, mod_data in enumerate(generated_mods):
-        mod_id = mod_data.get("mod_id")
-        entry = ModlistEntry(
-            modlist_id=modlist.id,
-            mod_id=mod_id if mod_id else None,
-            load_order=mod_data.get("load_order", i + 1),
-            enabled=True,
-            download_status="pending",
-        )
-        db.add(entry)
-        entries.append(
-            ModEntry(
-                mod_id=mod_id,
+    entries_schema = []
+
+    if use_fallback:
+        # Fallback path — uses curated DB mods
+        for i, mod_data in enumerate(fallback_mods):
+            entry = ModlistEntry(
+                modlist_id=modlist.id,
+                mod_id=mod_data.get("mod_id"),
                 name=mod_data.get("name", "Unknown"),
                 author=mod_data.get("author"),
                 summary=mod_data.get("summary"),
@@ -82,21 +110,62 @@ async def generate_modlist(
                 enabled=True,
                 download_status="pending",
             )
-        )
+            db.add(entry)
+            entries_schema.append(_entry_to_schema(entry))
+    else:
+        # Agentic pipeline path — uses Nexus-discovered mods
+        for i, mod_data in enumerate(result.entries):
+            entry = ModlistEntry(
+                modlist_id=modlist.id,
+                nexus_mod_id=mod_data.get("nexus_mod_id"),
+                name=mod_data.get("name", "Unknown"),
+                author=mod_data.get("author"),
+                summary=mod_data.get("summary"),
+                reason=mod_data.get("reason"),
+                load_order=mod_data.get("load_order", i + 1),
+                enabled=True,
+                download_status="pending",
+                is_patch=mod_data.get("is_patch", False),
+                patches_mods=mod_data.get("patches_mods"),
+            )
+            db.add(entry)
+            entries_schema.append(_entry_to_schema(entry))
+
+        # Save knowledge flags
+        for flag_data in result.knowledge_flags:
+            flag = ModlistKnowledgeFlag(
+                modlist_id=modlist.id,
+                mod_a_name=flag_data["mod_a"],
+                mod_b_name=flag_data["mod_b"],
+                issue=flag_data["issue"],
+                severity=flag_data.get("severity", "warning"),
+            )
+            db.add(flag)
 
     await db.commit()
+
+    # Build knowledge flags for response
+    knowledge_flags_schema = []
+    if result and result.knowledge_flags:
+        knowledge_flags_schema = [
+            UserKnowledgeFlag(
+                mod_a=f["mod_a"], mod_b=f["mod_b"],
+                issue=f["issue"], severity=f.get("severity", "warning"),
+            )
+            for f in result.knowledge_flags
+        ]
 
     return ModlistResponse(
         id=modlist.id,
         game_id=request.game_id,
         playstyle_id=request.playstyle_id,
-        entries=entries,
+        entries=entries_schema,
         llm_provider=modlist.llm_provider,
+        user_knowledge_flags=knowledge_flags_schema,
     )
 
 
 # VRAM thresholds that map to the old tier_min values in seed data
-# low = any VRAM, mid = 6GB+, high = 10GB+, ultra = 16GB+
 _TIER_MIN_VRAM = {"low": 0, "mid": 6144, "high": 10240, "ultra": 16384}
 
 
@@ -105,7 +174,7 @@ async def _fallback_modlist(
     game_version: str | None = None,
 ) -> list[dict]:
     """Fallback: return curated mods from DB when LLM is unavailable."""
-    vram = user_vram_mb or 6144  # default to 6GB if unknown
+    vram = user_vram_mb or 6144
 
     result = await db.execute(
         select(Mod, PlaystyleMod)
@@ -116,7 +185,6 @@ async def _fallback_modlist(
 
     mods = []
     for i, (mod, pm) in enumerate(result.all()):
-        # Filter by version compatibility
         if not _is_version_compatible(mod.game_version_support, game_version):
             continue
         min_vram = _TIER_MIN_VRAM.get(pm.hardware_tier_min or "low", 0)
@@ -145,28 +213,20 @@ async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
     if not modlist:
         raise HTTPException(status_code=404, detail="Modlist not found")
 
-    # Load entries with mod details
-    result = await db.execute(
-        select(ModlistEntry, Mod)
-        .outerjoin(Mod, ModlistEntry.mod_id == Mod.id)
+    # Load entries — use denormalized fields directly
+    entry_result = await db.execute(
+        select(ModlistEntry)
         .where(ModlistEntry.modlist_id == ml_uuid)
         .order_by(ModlistEntry.load_order)
     )
+    entries = [_entry_to_schema(e) for e in entry_result.scalars().all()]
 
-    entries = []
-    for entry, mod in result.all():
-        entries.append(
-            ModEntry(
-                mod_id=entry.mod_id,
-                nexus_mod_id=mod.nexus_mod_id if mod else None,
-                name=mod.name if mod else "Unknown",
-                author=mod.author if mod else None,
-                summary=mod.summary if mod else None,
-                load_order=entry.load_order,
-                enabled=entry.enabled,
-                download_status=entry.download_status,
-            )
-        )
+    # Load knowledge flags
+    flag_result = await db.execute(
+        select(ModlistKnowledgeFlag)
+        .where(ModlistKnowledgeFlag.modlist_id == ml_uuid)
+    )
+    flags = [_flag_to_schema(f) for f in flag_result.scalars().all()]
 
     return ModlistResponse(
         id=modlist.id,
@@ -174,6 +234,7 @@ async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
         playstyle_id=modlist.playstyle_id,
         entries=entries,
         llm_provider=modlist.llm_provider,
+        user_knowledge_flags=flags,
     )
 
 
@@ -193,25 +254,18 @@ async def get_my_modlists(
     responses = []
     for ml in modlists:
         entry_result = await db.execute(
-            select(ModlistEntry, Mod)
-            .outerjoin(Mod, ModlistEntry.mod_id == Mod.id)
+            select(ModlistEntry)
             .where(ModlistEntry.modlist_id == ml.id)
             .order_by(ModlistEntry.load_order)
         )
-        entries = []
-        for entry, mod in entry_result.all():
-            entries.append(
-                ModEntry(
-                    mod_id=entry.mod_id,
-                    nexus_mod_id=mod.nexus_mod_id if mod else None,
-                    name=mod.name if mod else "Unknown",
-                    author=mod.author if mod else None,
-                    summary=mod.summary if mod else None,
-                    load_order=entry.load_order,
-                    enabled=entry.enabled,
-                    download_status=entry.download_status,
-                )
-            )
+        entries = [_entry_to_schema(e) for e in entry_result.scalars().all()]
+
+        flag_result = await db.execute(
+            select(ModlistKnowledgeFlag)
+            .where(ModlistKnowledgeFlag.modlist_id == ml.id)
+        )
+        flags = [_flag_to_schema(f) for f in flag_result.scalars().all()]
+
         responses.append(
             ModlistResponse(
                 id=ml.id,
@@ -219,6 +273,7 @@ async def get_my_modlists(
                 playstyle_id=ml.playstyle_id,
                 entries=entries,
                 llm_provider=ml.llm_provider,
+                user_knowledge_flags=flags,
             )
         )
 

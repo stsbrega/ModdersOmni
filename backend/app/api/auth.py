@@ -302,6 +302,7 @@ async def get_hardware(user: User = Depends(get_current_user)):
         cpu_speed_ghz=user.cpu_speed_ghz,
         hardware_tier=user.hardware_tier,
         hardware_raw_text=user.hardware_raw_text,
+        storage_drives=user.storage_drives,
     )
 
 
@@ -338,6 +339,7 @@ async def update_hardware(
         cpu_speed_ghz=user.cpu_speed_ghz,
         hardware_tier=user.hardware_tier,
         hardware_raw_text=user.hardware_raw_text,
+        storage_drives=user.storage_drives,
     )
 
 

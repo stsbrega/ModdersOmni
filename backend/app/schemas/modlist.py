@@ -12,6 +12,7 @@ class ModlistGenerateRequest(BaseModel):
     ram_gb: int | None = None
     cpu_cores: int | None = None
     cpu_speed_ghz: float | None = None
+    available_storage_gb: int | None = None
 
 
 class ModEntry(BaseModel):
@@ -24,6 +25,16 @@ class ModEntry(BaseModel):
     load_order: int | None = None
     enabled: bool = True
     download_status: str = "pending"
+    is_patch: bool = False
+    patches_mods: list[str] | None = None
+    compatibility_notes: str | None = None
+
+
+class UserKnowledgeFlag(BaseModel):
+    mod_a: str
+    mod_b: str
+    issue: str
+    severity: str  # "warning" or "critical"
 
 
 class ModlistResponse(BaseModel):
@@ -32,6 +43,7 @@ class ModlistResponse(BaseModel):
     playstyle_id: int
     entries: list[ModEntry] = []
     llm_provider: str | None = None
+    user_knowledge_flags: list[UserKnowledgeFlag] = []
 
 
 class DownloadRequest(BaseModel):

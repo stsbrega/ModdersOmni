@@ -40,6 +40,7 @@ export class ApiService {
     ram_gb?: number;
     cpu_cores?: number;
     cpu_speed_ghz?: number;
+    available_storage_gb?: number;
   }): Observable<Modlist> {
     return this.http.post<Modlist>(`${this.baseUrl}/modlist/generate`, request);
   }

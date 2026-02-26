@@ -7,6 +7,7 @@ export interface UserHardware {
   cpu_speed_ghz?: number;
   hardware_tier?: string;
   hardware_raw_text?: string;
+  storage_drives?: string;
 }
 
 export interface OAuthProviderInfo {
@@ -50,4 +51,5 @@ export interface HardwareUpdateRequest {
   cpu_cores?: number;
   cpu_speed_ghz?: number;
   hardware_raw_text?: string;
+  storage_drives?: string;
 }

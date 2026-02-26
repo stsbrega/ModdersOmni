@@ -54,6 +54,7 @@ class HardwareUpdate(BaseModel):
     cpu_cores: int | None = None
     cpu_speed_ghz: float | None = None
     hardware_raw_text: str | None = None
+    storage_drives: str | None = None
 
 
 class HardwareResponse(BaseModel):
@@ -65,6 +66,7 @@ class HardwareResponse(BaseModel):
     cpu_speed_ghz: float | None = None
     hardware_tier: str | None = None
     hardware_raw_text: str | None = None
+    storage_drives: str | None = None
 
     model_config = {"from_attributes": True}
 

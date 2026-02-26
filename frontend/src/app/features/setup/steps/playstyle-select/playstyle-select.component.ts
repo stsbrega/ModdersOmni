@@ -302,6 +302,7 @@ export class PlaystyleSelectComponent implements OnInit {
         cpu_cores: this.specs.cpu_cores,
         cpu_speed_ghz: this.specs.cpu_speed_ghz,
         game_version: this.gameVersion,
+        available_storage_gb: this.getMaxFreeStorageGb(),
       })
       .subscribe({
         next: (modlist) => {
@@ -312,5 +313,13 @@ export class PlaystyleSelectComponent implements OnInit {
           this.loading.set(false);
         },
       });
+  }
+
+  private getMaxFreeStorageGb(): number | undefined {
+    const drives = this.specs.storage_drives;
+    if (!drives) return undefined;
+    const matches = drives.match(/(\d+)\s*GB\s*free/gi);
+    if (!matches?.length) return undefined;
+    return Math.max(...matches.map(m => parseInt(m)));
   }
 }

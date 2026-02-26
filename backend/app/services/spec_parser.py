@@ -42,7 +42,7 @@ RAM_PATTERNS = [
     re.compile(r"(?:System\s*Memory|System\s*RAM)\s*[:=]?\s*(\d{1,3})(?:\.\d+)?\s*GB", re.IGNORECASE),
     # "RAM: 32 GB DDR5", "32 GB DDR5 RAM"
     re.compile(r"(\d{1,3})\s*GB\s*DDR\d", re.IGNORECASE),
-    re.compile(r"(?:RAM)\s*[:=]?\s*(\d{1,3})(?:\.\d+)?\s*GB", re.IGNORECASE),
+    re.compile(r"(?<!V)(?:RAM)\s*[:=]?\s*(\d{1,3})(?:\.\d+)?\s*GB", re.IGNORECASE),
     # "Installed Physical Memory (RAM): 32 GB", "Total Physical Memory: 32,651 MB"
     re.compile(r"(?:Installed\s*(?:Physical\s*)?Memory|Total\s*Physical\s*Memory)\s*(?:\(RAM\))?\s*[:=]?\s*(\d{1,3})(?:[.,]\d+)?\s*GB", re.IGNORECASE),
     # "Memory: 32768 MB" or "32,651 MB" (but NOT "Video Memory" or "GDDR")
@@ -68,6 +68,12 @@ CPU_SPEED_PATTERNS = [
     re.compile(r"(?:Base|Boost|Clock|Speed|Frequency)\s*[:=]?\s*(\d+\.\d+)\s*GHz", re.IGNORECASE),
     re.compile(r"@\s*(\d+\.\d+)\s*GHz", re.IGNORECASE),
 ]
+
+
+# Storage drive patterns - matches "Drives: C: 110GB free / 931GB, D: 412GB free / 1863GB"
+DRIVE_PATTERN = re.compile(
+    r"[Dd]rives?\s*[:=]?\s*(.+)",
+)
 
 
 LLM_PARSE_PROMPT = """Extract hardware specifications from the following text.
@@ -245,6 +251,14 @@ def _infer_vram_from_gpu(gpu_name: str) -> int | None:
     return None
 
 
+def _parse_drives(text: str) -> str | None:
+    """Extract storage drive info from text."""
+    match = DRIVE_PATTERN.search(text)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
 def parse_specs_regex(raw_text: str) -> HardwareSpecs:
     """Parse hardware specs using regex patterns."""
     gpu = _extract_first_match(raw_text, GPU_PATTERNS)
@@ -261,6 +275,7 @@ def parse_specs_regex(raw_text: str) -> HardwareSpecs:
         ram_gb=_parse_ram(raw_text),
         cpu_cores=_parse_cpu_cores(raw_text),
         cpu_speed_ghz=_parse_cpu_speed(raw_text),
+        storage_drives=_parse_drives(raw_text),
     )
 
 

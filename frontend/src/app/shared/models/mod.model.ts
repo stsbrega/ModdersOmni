@@ -8,6 +8,16 @@ export interface ModEntry {
   load_order?: number;
   enabled: boolean;
   download_status: string;
+  is_patch?: boolean;
+  patches_mods?: string[];
+  compatibility_notes?: string;
+}
+
+export interface UserKnowledgeFlag {
+  mod_a: string;
+  mod_b: string;
+  issue: string;
+  severity: string; // "warning" | "critical"
 }
 
 export interface Modlist {
@@ -16,6 +26,7 @@ export interface Modlist {
   playstyle_id: number;
   entries: ModEntry[];
   llm_provider?: string;
+  user_knowledge_flags?: UserKnowledgeFlag[];
 }
 
 export interface DownloadStatus {

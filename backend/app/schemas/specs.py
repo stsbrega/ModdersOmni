@@ -12,6 +12,7 @@ class HardwareSpecs(BaseModel):
     ram_gb: int | None = None
     cpu_cores: int | None = None
     cpu_speed_ghz: float | None = None
+    storage_drives: str | None = None  # e.g. "C: 110GB free / 931GB, D: 412GB free / 1863GB"
 
 
 class TierScores(BaseModel):

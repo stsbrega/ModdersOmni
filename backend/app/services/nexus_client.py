@@ -8,6 +8,13 @@ class NexusModsClient:
 
     BASE_URL = "https://api.nexusmods.com/v2/graphql"
 
+    # Map friendly sort names to GraphQL sort clauses
+    _SORT_MAP = {
+        "endorsements": "endorsements: { direction: DESC }",
+        "updated": "updatedAt: { direction: DESC }",
+        "name": "name: { direction: ASC }",
+    }
+
     def __init__(self, api_key: str | None = None):
         settings = get_settings()
         self.api_key = api_key or settings.nexus_api_key
@@ -31,34 +38,80 @@ class NexusModsClient:
                 response.raise_for_status()
                 return response.json()
 
-    async def search_mods(self, game_domain: str, search_term: str) -> list[dict]:
-        """Search for mods by name on Nexus Mods."""
-        query = """
-        query SearchMods($gameDomain: String!, $searchTerm: String!) {
+    async def search_mods(
+        self,
+        game_domain: str,
+        search_term: str,
+        sort_by: str = "endorsements",
+        offset: int = 0,
+    ) -> list[dict]:
+        """Search for mods by name on Nexus Mods.
+
+        Args:
+            game_domain: Nexus game domain slug (e.g. "skyrimspecialedition")
+            search_term: Search query
+            sort_by: Sort order — "endorsements" (default), "updated", or "name"
+            offset: Pagination offset
+        """
+        sort_clause = self._SORT_MAP.get(sort_by, self._SORT_MAP["endorsements"])
+
+        query = f"""
+        query SearchMods($gameDomain: String!, $searchTerm: String!, $offset: Int!) {{
             mods(
-                filter: {
-                    gameDomainName: { value: $gameDomain }
-                    name: { value: $searchTerm, op: WILDCARD }
-                }
-                sort: { endorsements: { direction: DESC } }
-            ) {
-                nodes {
+                filter: {{
+                    gameDomainName: {{ value: $gameDomain }}
+                    name: {{ value: $searchTerm, op: WILDCARD }}
+                }}
+                sort: {{ {sort_clause} }}
+                offset: $offset
+            ) {{
+                nodes {{
                     modId
                     name
                     summary
                     author
                     version
                     endorsementCount
-                    modCategory { name }
-                }
+                    modCategory {{ name }}
+                    updatedAt
+                }}
+            }}
+        }}
+        """
+        result = await self._query(query, {
+            "gameDomain": game_domain,
+            "searchTerm": f"*{search_term}*",
+            "offset": offset,
+        })
+        return result.get("data", {}).get("mods", {}).get("nodes", [])
+
+    async def get_mod_details(self, game_domain: str, mod_id: int) -> dict | None:
+        """Get full mod details including description HTML.
+
+        The description field contains the mod author's full page content,
+        which often includes compatibility notes, patch links, and requirements.
+        """
+        query = """
+        query GetModDetails($gameDomain: String!, $modId: Int!) {
+            mod(gameDomainName: $gameDomain, modId: $modId) {
+                modId
+                name
+                summary
+                description
+                author
+                version
+                endorsementCount
+                modCategory { name }
+                createdAt
+                updatedAt
             }
         }
         """
         result = await self._query(query, {
             "gameDomain": game_domain,
-            "searchTerm": f"*{search_term}*",
+            "modId": mod_id,
         })
-        return result.get("data", {}).get("mods", {}).get("nodes", [])
+        return result.get("data", {}).get("mod")
 
     async def get_mod_files(self, game_domain: str, mod_id: int) -> list[dict]:
         """Get available files for a mod."""
