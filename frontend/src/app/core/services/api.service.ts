@@ -71,6 +71,10 @@ export class ApiService {
     return this.http.get<Modlist[]>(`${this.baseUrl}/modlist/mine`);
   }
 
+  deleteModlist(modlistId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/modlist/${modlistId}`);
+  }
+
   // LLM Providers (public)
   getLlmProviders(): Observable<LlmProvider[]> {
     return this.http.get<LlmProvider[]>(`${this.baseUrl}/settings/llm-providers`);

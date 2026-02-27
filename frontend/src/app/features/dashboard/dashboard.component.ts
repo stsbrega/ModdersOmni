@@ -129,9 +129,17 @@ import { DatePipe } from '@angular/common';
                       <span class="card-fallback">Fallback</span>
                     }
                   </div>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-arrow">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
+                  <div class="card-actions">
+                    <button class="btn-delete" title="Delete modlist" (click)="confirmDelete($event, ml)">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                      </svg>
+                    </button>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-arrow">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </div>
                 </div>
                 <div class="card-stats">
                   <span class="card-mod-count">{{ coreModCount(ml) }} mods</span>
@@ -145,6 +153,22 @@ import { DatePipe } from '@angular/common';
               </a>
             }
           </div>
+
+          <!-- Delete confirmation overlay -->
+          @if (deleteTarget()) {
+            <div class="confirm-overlay" (click)="cancelDelete()">
+              <div class="confirm-dialog" (click)="$event.stopPropagation()">
+                <h3>Delete modlist?</h3>
+                <p>This will permanently remove this modlist and its {{ deleteTarget()!.entries.length }} mods. This cannot be undone.</p>
+                <div class="confirm-actions">
+                  <button class="btn-cancel" (click)="cancelDelete()">Cancel</button>
+                  <button class="btn-confirm-delete" (click)="executeDelete()" [disabled]="deleting()">
+                    {{ deleting() ? 'Deleting...' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
         }
       </main>
     </div>
@@ -379,6 +403,31 @@ import { DatePipe } from '@angular/common';
       background: rgba(234, 179, 8, 0.12);
       color: var(--color-warning);
     }
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .btn-delete {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-dim);
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      opacity: 0;
+    }
+    .modlist-card:hover .btn-delete { opacity: 1; }
+    .btn-delete:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
     .card-arrow {
       color: var(--color-text-dim);
       transition: color 0.15s, transform 0.15s;
@@ -388,6 +437,70 @@ import { DatePipe } from '@angular/common';
       color: var(--color-gold);
       transform: translateX(2px);
     }
+
+    /* Confirm overlay */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .confirm-dialog {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      max-width: 380px;
+      width: 90%;
+    }
+    .confirm-dialog h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .confirm-dialog p {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.625rem;
+    }
+    .btn-cancel {
+      padding: 0.4375rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-cancel:hover {
+      border-color: var(--color-border-hover);
+      color: var(--color-text);
+    }
+    .btn-confirm-delete {
+      padding: 0.4375rem 1rem;
+      border-radius: 6px;
+      border: none;
+      background: #ef4444;
+      color: #fff;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-confirm-delete:hover { background: #dc2626; }
+    .btn-confirm-delete:disabled { opacity: 0.6; cursor: not-allowed; }
     .card-stats {
       display: flex;
       align-items: baseline;
@@ -419,6 +532,8 @@ import { DatePipe } from '@angular/common';
 export class DashboardComponent implements OnInit {
   modlists = signal<Modlist[]>([]);
   loading = signal(true);
+  deleteTarget = signal<Modlist | null>(null);
+  deleting = signal(false);
 
   totalMods = computed(() =>
     this.modlists().reduce((sum, ml) => sum + ml.entries.length, 0)
@@ -444,5 +559,32 @@ export class DashboardComponent implements OnInit {
 
   patchModCount(ml: Modlist): number {
     return ml.entries.filter(e => e.is_patch).length;
+  }
+
+  confirmDelete(event: Event, ml: Modlist): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.deleteTarget.set(ml);
+  }
+
+  cancelDelete(): void {
+    this.deleteTarget.set(null);
+  }
+
+  executeDelete(): void {
+    const target = this.deleteTarget();
+    if (!target) return;
+
+    this.deleting.set(true);
+    this.api.deleteModlist(target.id).subscribe({
+      next: () => {
+        this.modlists.update(list => list.filter(ml => ml.id !== target.id));
+        this.deleteTarget.set(null);
+        this.deleting.set(false);
+      },
+      error: () => {
+        this.deleting.set(false);
+      },
+    });
   }
 }
