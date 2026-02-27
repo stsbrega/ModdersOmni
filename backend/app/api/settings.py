@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+_NOTIF_FIELDS = {"email_alerts", "mod_recommendations", "compat_warnings"}
+
+
 class AppSettings(BaseModel):
     nexus_api_key: str = ""
     llm_provider: str = "ollama"
@@ -30,6 +33,10 @@ class AppSettings(BaseModel):
     huggingface_model: str = "meta-llama/Llama-3.1-8B-Instruct"
     custom_source_api_url: str = ""
     custom_source_api_key: str = ""
+    # Notification preferences (stored in notification_prefs JSON column)
+    email_alerts: bool = True
+    mod_recommendations: bool = True
+    compat_warnings: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -153,7 +160,13 @@ async def get_app_settings(
 ):
     settings_row = await _get_or_create_settings(current_user, db)
     await db.commit()
-    return AppSettings.model_validate(settings_row)
+    result = AppSettings.model_validate(settings_row)
+    # Overlay notification prefs from JSON column
+    prefs = settings_row.notification_prefs or {}
+    result.email_alerts = prefs.get("email_alerts", True)
+    result.mod_recommendations = prefs.get("mod_recommendations", True)
+    result.compat_warnings = prefs.get("compat_warnings", True)
+    return result
 
 
 @router.put("/")
@@ -164,9 +177,15 @@ async def update_settings(
 ):
     settings_row = await _get_or_create_settings(current_user, db)
 
-    # Update all fields
+    # Store notification prefs in JSON column (not individual DB columns)
+    settings_row.notification_prefs = {
+        k: v for k, v in data.model_dump().items() if k in _NOTIF_FIELDS
+    }
+
+    # Update regular DB columns, skipping notification fields
     for field, value in data.model_dump().items():
-        setattr(settings_row, field, value)
+        if field not in _NOTIF_FIELDS and hasattr(settings_row, field):
+            setattr(settings_row, field, value)
 
     # Also update the runtime config so LLM providers pick up new keys
     config = get_settings()

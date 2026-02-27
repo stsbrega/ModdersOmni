@@ -6,7 +6,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
 import { HardwareDetectorService } from '../../core/services/hardware-detector.service';
 
-type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
+type SettingsTab = 'profile' | 'hardware' | 'notifications';
 
 @Component({
   selector: 'app-settings',
@@ -103,42 +103,29 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                 <p class="input-hint">Required for mod downloads. Get your key from Nexus Mods account settings.</p>
               </div>
               <div class="panel-section">
-                <h3>LLM Provider</h3>
-                <select class="input" [(ngModel)]="llmProvider">
-                  <option value="ollama">Ollama (Local)</option>
-                  <option value="groq">Groq (Cloud - Free Tier)</option>
-                  <option value="together">Together AI (Cloud - Free Tier)</option>
-                  <option value="huggingface">HuggingFace (Cloud - Free Tier)</option>
-                </select>
+                <h3>AI Provider API Keys</h3>
+                <p class="input-hint" style="margin-bottom: 0.75rem;">
+                  Add API keys for the LLM providers you want to use for modlist generation.
+                  Keys are tried in order during generation — if one fails, the next is used.
+                </p>
+                @for (provider of llmProviders(); track provider.id) {
+                  <div class="provider-row">
+                    <div class="provider-header">
+                      <span class="provider-name">{{ provider.name }}</span>
+                      <a class="provider-link" [href]="'https://' + provider.hint_url" target="_blank" rel="noopener">
+                        {{ provider.hint_url }}
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      class="input"
+                      [placeholder]="provider.placeholder || 'Enter API key'"
+                      [value]="llmKeys()[provider.id] || ''"
+                      (input)="setLlmKey(provider.id, $any($event.target).value)"
+                    >
+                  </div>
+                }
               </div>
-              @if (llmProvider === 'ollama') {
-                <div class="panel-section sub">
-                  <h3>Ollama URL</h3>
-                  <input type="text" class="input" [(ngModel)]="ollamaBaseUrl">
-                </div>
-                <div class="panel-section sub">
-                  <h3>Model Name</h3>
-                  <input type="text" class="input" [(ngModel)]="ollamaModel">
-                </div>
-              }
-              @if (llmProvider === 'groq') {
-                <div class="panel-section sub">
-                  <h3>Groq API Key</h3>
-                  <input type="password" class="input" [(ngModel)]="groqApiKey" placeholder="Enter Groq API key">
-                </div>
-              }
-              @if (llmProvider === 'together') {
-                <div class="panel-section sub">
-                  <h3>Together AI API Key</h3>
-                  <input type="password" class="input" [(ngModel)]="togetherApiKey" placeholder="Enter Together AI API key">
-                </div>
-              }
-              @if (llmProvider === 'huggingface') {
-                <div class="panel-section sub">
-                  <h3>HuggingFace API Key</h3>
-                  <input type="password" class="input" [(ngModel)]="huggingfaceApiKey" placeholder="Enter HuggingFace API key">
-                </div>
-              }
             </div>
           }
           @case ('hardware') {
@@ -272,57 +259,6 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
                     </div>
                   }
                 </div>
-              </div>
-            </div>
-          }
-          @case ('preferences') {
-            <div class="tab-panel" @fadeIn>
-              <div class="panel-section">
-                <h3>Game Selection</h3>
-                <div class="toggle-group">
-                  @for (game of gameOptions; track game.value) {
-                    <button
-                      class="toggle-btn"
-                      [class.active]="selectedGames().includes(game.value)"
-                      (click)="toggleGame(game.value)"
-                    >
-                      {{ game.label }}
-                    </button>
-                  }
-                </div>
-              </div>
-              <div class="panel-section">
-                <h3>Modding Experience</h3>
-                <div class="toggle-group">
-                  @for (level of experienceLevels; track level) {
-                    <button
-                      class="toggle-btn"
-                      [class.active]="experience() === level"
-                      (click)="experience.set(level)"
-                    >
-                      {{ level }}
-                    </button>
-                  }
-                </div>
-              </div>
-              <div class="panel-section">
-                <h3>Preferred Mod Categories</h3>
-                <div class="chip-group">
-                  @for (cat of modCategories; track cat) {
-                    <button
-                      class="chip"
-                      [class.selected]="selectedModCategories().includes(cat)"
-                      (click)="toggleModCategory(cat)"
-                    >
-                      {{ cat }}
-                    </button>
-                  }
-                </div>
-              </div>
-              <div class="panel-section">
-                <h3>Custom Mod Source</h3>
-                <input type="text" class="input" [(ngModel)]="customSourceUrl" placeholder="https://api.example.com">
-                <p class="input-hint">Optional external mod API endpoint.</p>
               </div>
             </div>
           }
@@ -789,57 +725,28 @@ type SettingsTab = 'profile' | 'hardware' | 'preferences' | 'notifications';
       color: var(--color-gold);
     }
 
-    /* Toggle Group */
-    .toggle-group {
+    /* Provider rows */
+    .provider-row {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .provider-row:last-child { border-bottom: none; }
+    .provider-header {
       display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 0.375rem;
     }
-    .toggle-btn {
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      border: 1px solid var(--color-border);
-      background: transparent;
-      color: var(--color-text-muted);
+    .provider-row .provider-name {
       font-size: 0.8125rem;
-      font-weight: 500;
-      transition: all 0.15s;
+      font-weight: 600;
     }
-    .toggle-btn:hover {
-      border-color: var(--color-border-hover);
-      color: var(--color-text);
+    .provider-link {
+      font-size: 0.6875rem;
+      color: var(--color-text-dim);
+      transition: color 0.15s;
     }
-    .toggle-btn.active {
-      border-color: var(--color-gold);
-      background: rgba(192, 160, 96, 0.1);
-      color: var(--color-gold);
-    }
-
-    /* Chips */
-    .chip-group {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .chip {
-      padding: 0.375rem 0.875rem;
-      border-radius: 100px;
-      border: 1px solid var(--color-border);
-      background: transparent;
-      color: var(--color-text-muted);
-      font-size: 0.8125rem;
-      font-weight: 500;
-      transition: all 0.15s;
-    }
-    .chip:hover {
-      border-color: var(--color-border-hover);
-      color: var(--color-text);
-    }
-    .chip.selected {
-      border-color: var(--color-gold);
-      background: rgba(192, 160, 96, 0.1);
-      color: var(--color-gold);
-    }
+    .provider-link:hover { color: var(--color-gold); }
 
     /* Notification items */
     .notif-item {
@@ -911,7 +818,6 @@ export class SettingsComponent implements OnInit {
   tabs: { id: SettingsTab; label: string }[] = [
     { id: 'profile', label: 'Profile' },
     { id: 'hardware', label: 'Hardware' },
-    { id: 'preferences', label: 'Preferences' },
     { id: 'notifications', label: 'Notifications' },
   ];
 
@@ -926,12 +832,10 @@ export class SettingsComponent implements OnInit {
     { id: 'discord' as const, label: 'Discord' },
   ];
   nexusApiKey = '';
-  llmProvider = 'ollama';
-  ollamaBaseUrl = 'http://localhost:11434/v1';
-  ollamaModel = 'llama3.1:8b';
-  groqApiKey = '';
-  togetherApiKey = '';
-  huggingfaceApiKey = '';
+
+  // LLM Providers (registry-based)
+  llmProviders = signal<{ id: string; name: string; model: string; placeholder: string; hint_url: string }[]>([]);
+  llmKeys = signal<Record<string, string>>({});
 
   // Hardware
   gpuModel = '';
@@ -959,18 +863,6 @@ export class SettingsComponent implements OnInit {
   commandCopied = signal(false);
   powershellCommand = `$gpu=Get-CimInstance Win32_VideoController|Sort-Object AdapterRAM -Descending|Select -First 1;$g=$gpu.Name;try{$v=[math]::Round((nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>$null|Select -First 1)/1024)}catch{$v=0};if(!$v){$v=[math]::Round($gpu.AdapterRAM/1GB)};$c=(Get-CimInstance Win32_Processor).Name;$r=[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB);$n=(Get-CimInstance Win32_Processor).NumberOfCores;$t=(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors;$d=(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"|ForEach-Object{"$($_.DeviceID) $([math]::Round($_.FreeSpace/1GB))GB free / $([math]::Round($_.Size/1GB))GB"}) -join ", ";"GPU: $g\`nVRAM: $v GB\`nCPU: $c\`nCores: $n cores / $t threads\`nRAM: $r GB\`nDrives: $d"`;
 
-  // Preferences
-  gameOptions = [
-    { value: 'skyrim', label: 'Skyrim SE/AE' },
-    { value: 'fallout', label: 'Fallout 4' },
-  ];
-  selectedGames = signal<string[]>(['skyrim']);
-  experienceLevels = ['Beginner', 'Intermediate', 'Expert'];
-  experience = signal('Intermediate');
-  modCategories = ['Gameplay', 'Visuals', 'Textures', 'UI', 'Audio', 'Followers', 'Quests', 'Combat'];
-  selectedModCategories = signal<string[]>(['Gameplay', 'Visuals']);
-  customSourceUrl = '';
-
   // Notifications
   emailAlerts = true;
   modRecommendations = true;
@@ -988,18 +880,12 @@ export class SettingsComponent implements OnInit {
     this.loadSettings();
     this.loadHardware();
     this.loadConnectedAccounts();
+    this.loadLlmProviders();
+    this.loadLlmKeys();
   }
 
-  toggleGame(game: string): void {
-    this.selectedGames.update(games =>
-      games.includes(game) ? games.filter(g => g !== game) : [...games, game]
-    );
-  }
-
-  toggleModCategory(cat: string): void {
-    this.selectedModCategories.update(cats =>
-      cats.includes(cat) ? cats.filter(c => c !== cat) : [...cats, cat]
-    );
+  setLlmKey(providerId: string, value: string): void {
+    this.llmKeys.update(keys => ({ ...keys, [providerId]: value }));
   }
 
   resendVerification(): void {
@@ -1104,16 +990,26 @@ export class SettingsComponent implements OnInit {
 
   private loadSettings(): void {
     this.api.getSettings().subscribe({
-      next: (settings) => {
+      next: (settings: any) => {
         this.nexusApiKey = settings.nexus_api_key || '';
-        this.llmProvider = settings.llm_provider || 'ollama';
-        this.ollamaBaseUrl = settings.ollama_base_url || 'http://localhost:11434/v1';
-        this.ollamaModel = settings.ollama_model || 'llama3.1:8b';
-        this.groqApiKey = settings.groq_api_key || '';
-        this.togetherApiKey = settings.together_api_key || '';
-        this.huggingfaceApiKey = settings.huggingface_api_key || '';
-        this.customSourceUrl = settings.custom_source_api_url || '';
+        this.emailAlerts = settings.email_alerts ?? true;
+        this.modRecommendations = settings.mod_recommendations ?? true;
+        this.compatWarnings = settings.compat_warnings ?? true;
       },
+      error: () => {},
+    });
+  }
+
+  private loadLlmProviders(): void {
+    this.api.getLlmProviders().subscribe({
+      next: (providers) => this.llmProviders.set(providers),
+      error: () => {},
+    });
+  }
+
+  private loadLlmKeys(): void {
+    this.api.getLlmKeys().subscribe({
+      next: (keys) => this.llmKeys.set(keys),
       error: () => {},
     });
   }
@@ -1174,19 +1070,20 @@ export class SettingsComponent implements OnInit {
       error: () => this.notifications.error('Failed to save hardware'),
     });
 
-    // Save API/LLM settings
+    // Save settings (Nexus key + notification prefs)
     this.api.updateSettings({
       nexus_api_key: this.nexusApiKey,
-      llm_provider: this.llmProvider,
-      ollama_base_url: this.ollamaBaseUrl,
-      ollama_model: this.ollamaModel,
-      groq_api_key: this.groqApiKey,
-      together_api_key: this.togetherApiKey,
-      huggingface_api_key: this.huggingfaceApiKey,
-      custom_source_api_url: this.customSourceUrl,
+      email_alerts: this.emailAlerts,
+      mod_recommendations: this.modRecommendations,
+      compat_warnings: this.compatWarnings,
     }).subscribe({
-      next: () => this.notifications.success('Settings saved successfully'),
       error: () => this.notifications.error('Failed to save settings'),
+    });
+
+    // Save LLM API keys
+    this.api.saveLlmKeys(this.llmKeys()).subscribe({
+      next: () => this.notifications.success('Settings saved successfully'),
+      error: () => this.notifications.error('Failed to save API keys'),
     });
   }
 }

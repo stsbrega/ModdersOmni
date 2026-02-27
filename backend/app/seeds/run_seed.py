@@ -197,9 +197,8 @@ async def seed_build_phases(
 
 
 async def _apply_migrations(conn) -> None:
-    """Apply schema migrations that create_all can't handle (column width changes)."""
+    """Apply schema migrations that create_all can't handle."""
     # Widen modlists.llm_provider from VARCHAR(20) to VARCHAR(100)
-    # create_all won't alter existing columns, so we do it manually.
     try:
         await conn.execute(text(
             "ALTER TABLE modlists ALTER COLUMN llm_provider TYPE VARCHAR(100)"
@@ -207,6 +206,16 @@ async def _apply_migrations(conn) -> None:
         print("  Migration: widened modlists.llm_provider to VARCHAR(100)")
     except Exception:
         pass  # Column already widened or table doesn't exist yet
+
+    # Add notification_prefs JSON column to user_settings
+    try:
+        await conn.execute(text(
+            "ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS "
+            "notification_prefs JSONB DEFAULT '{}'"
+        ))
+        print("  Migration: added user_settings.notification_prefs")
+    except Exception:
+        pass  # Column already exists or table doesn't exist yet
 
 
 async def main():

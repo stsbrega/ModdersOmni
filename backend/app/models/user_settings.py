@@ -42,6 +42,9 @@ class UserSettings(Base):
     # Unified JSON store for all LLM API keys: {"provider_id": "api_key", ...}
     llm_api_keys: Mapped[dict] = mapped_column(JSON, default=dict)
 
+    # Notification preferences: {"email_alerts": true, "mod_recommendations": true, ...}
+    notification_prefs: Mapped[dict] = mapped_column(JSON, default=dict)
+
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow
