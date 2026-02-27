@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session, engine, Base
@@ -196,10 +196,27 @@ async def seed_build_phases(
     print(f"  Phases: {len(phase_list)}")
 
 
+async def _apply_migrations(conn) -> None:
+    """Apply schema migrations that create_all can't handle (column width changes)."""
+    # Widen modlists.llm_provider from VARCHAR(20) to VARCHAR(100)
+    # create_all won't alter existing columns, so we do it manually.
+    try:
+        await conn.execute(text(
+            "ALTER TABLE modlists ALTER COLUMN llm_provider TYPE VARCHAR(100)"
+        ))
+        print("  Migration: widened modlists.llm_provider to VARCHAR(100)")
+    except Exception:
+        pass  # Column already widened or table doesn't exist yet
+
+
 async def main():
     print("Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    print("Applying schema migrations...")
+    async with engine.begin() as conn:
+        await _apply_migrations(conn)
 
     async with async_session() as session:
         print("Seeding games...")

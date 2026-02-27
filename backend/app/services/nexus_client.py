@@ -1,5 +1,17 @@
 import httpx
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class NexusAPIError(Exception):
+    """Raised when the Nexus GraphQL API returns errors in the response body."""
+
+    def __init__(self, errors: list[dict]):
+        self.errors = errors
+        messages = "; ".join(e.get("message", "Unknown error") for e in errors)
+        super().__init__(f"Nexus GraphQL errors: {messages}")
 
 
 class NexusModsClient:
@@ -7,11 +19,11 @@ class NexusModsClient:
 
     BASE_URL = "https://api.nexusmods.com/v2/graphql"
 
-    # Map friendly sort names to GraphQL sort clauses
+    # Map friendly sort names to GraphQL sort variable objects
     _SORT_MAP = {
-        "endorsements": "endorsements: { direction: DESC }",
-        "updated": "updatedAt: { direction: DESC }",
-        "name": "name: { direction: ASC }",
+        "endorsements": [{"endorsements": {"direction": "DESC"}}],
+        "updated": [{"updatedAt": {"direction": "DESC"}}],
+        "name": [{"name": {"direction": "ASC"}}],
     }
 
     def __init__(self, api_key: str | None = None):
@@ -25,16 +37,78 @@ class NexusModsClient:
         }
 
     async def _query(self, query: str, variables: dict | None = None) -> dict:
+        """Execute a GraphQL query and return the parsed response.
+
+        Raises NexusAPIError if the response contains GraphQL-level errors.
+        Raises httpx.HTTPStatusError for HTTP-level errors.
+        """
         async with self._semaphore:
             async with httpx.AsyncClient() as client:
+                payload = {"query": query, "variables": variables or {}}
                 response = await client.post(
                     self.BASE_URL,
                     headers=self._headers(),
-                    json={"query": query, "variables": variables or {}},
+                    json=payload,
                     timeout=30.0,
                 )
                 response.raise_for_status()
+                result = response.json()
+
+                # Check for GraphQL-level errors
+                if result.get("errors"):
+                    logger.error(
+                        "Nexus GraphQL errors: %s | query: %s | variables: %s",
+                        result["errors"],
+                        query.strip()[:200],
+                        variables,
+                    )
+                    raise NexusAPIError(result["errors"])
+
+                # Warn if data is None (unexpected for a successful query)
+                if result.get("data") is None:
+                    logger.warning(
+                        "Nexus returned null data without errors | query: %s | variables: %s",
+                        query.strip()[:200],
+                        variables,
+                    )
+
+                return result
+
+    async def validate_key(self) -> dict:
+        """Validate the API key against the Nexus v1 endpoint.
+
+        Returns user info dict on success, raises on failure.
+        """
+        async with self._semaphore:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://api.nexusmods.com/v1/users/validate.json",
+                    headers={"apikey": self.api_key},
+                    timeout=15.0,
+                )
+                response.raise_for_status()
                 return response.json()
+
+    # Verified working query — uses typed variables ($filter: ModsFilter)
+    # instead of interpolating scalar variables into inline filter objects.
+    # Confirmed against live API: this format returns results.
+    _SEARCH_QUERY = """
+    query SearchMods($filter: ModsFilter, $sort: [ModsSort!], $offset: Int, $count: Int) {
+        mods(filter: $filter, sort: $sort, offset: $offset, count: $count) {
+            nodes {
+                modId
+                name
+                summary
+                author
+                version
+                endorsements
+                modCategory { name }
+                updatedAt
+            }
+            totalCount
+        }
+    }
+    """
 
     async def search_mods(
         self,
@@ -45,43 +119,50 @@ class NexusModsClient:
     ) -> list[dict]:
         """Search for mods by name on Nexus Mods.
 
+        Uses the v2 GraphQL API with the correct variable-based filter format.
+        Key details verified against the live API:
+        - Filter must be passed as a $filter: ModsFilter variable (not inline)
+        - Each filter field is an array of {value, op} objects
+        - WILDCARD operator does partial matching automatically (do NOT wrap in *)
+        - Sort must be a list of sort objects
+        - Field is 'endorsements' not 'endorsements'
+
         Args:
             game_domain: Nexus game domain slug (e.g. "skyrimspecialedition")
-            search_term: Search query
+            search_term: Search query (do NOT wrap in asterisks)
             sort_by: Sort order — "endorsements" (default), "updated", or "name"
             offset: Pagination offset
         """
-        sort_clause = self._SORT_MAP.get(sort_by, self._SORT_MAP["endorsements"])
+        sort_var = self._SORT_MAP.get(sort_by, self._SORT_MAP["endorsements"])
 
-        query = f"""
-        query SearchMods($gameDomain: String!, $searchTerm: String!, $offset: Int!) {{
-            mods(
-                filter: {{
-                    gameDomainName: {{ value: $gameDomain }}
-                    name: {{ value: $searchTerm, op: WILDCARD }}
-                }}
-                sort: {{ {sort_clause} }}
-                offset: $offset
-            ) {{
-                nodes {{
-                    modId
-                    name
-                    summary
-                    author
-                    version
-                    endorsementCount
-                    modCategory {{ name }}
-                    updatedAt
-                }}
-            }}
-        }}
-        """
-        result = await self._query(query, {
-            "gameDomain": game_domain,
-            "searchTerm": f"*{search_term}*",
+        variables = {
+            "filter": {
+                "gameDomainName": [{"value": game_domain, "op": "EQUALS"}],
+                "name": [{"value": search_term, "op": "WILDCARD"}],
+            },
+            "sort": sort_var,
             "offset": offset,
-        })
-        return result.get("data", {}).get("mods", {}).get("nodes", [])
+            "count": 20,
+        }
+
+        result = await self._query(self._SEARCH_QUERY, variables)
+        data = result.get("data") or {}
+        mods_data = data.get("mods") or {}
+        nodes = mods_data.get("nodes") or []
+        total = mods_data.get("totalCount", 0)
+
+        if not nodes:
+            logger.info(
+                "Nexus search returned 0 results: game=%s query=%r sort=%s",
+                game_domain, search_term, sort_by,
+            )
+        else:
+            logger.debug(
+                "Nexus search: game=%s query=%r → %d results (total: %d)",
+                game_domain, search_term, len(nodes), total,
+            )
+
+        return nodes
 
     async def get_mod_details(self, game_domain: str, mod_id: int) -> dict | None:
         """Get full mod details including description HTML.
@@ -98,7 +179,7 @@ class NexusModsClient:
                 description
                 author
                 version
-                endorsementCount
+                endorsements
                 modCategory { name }
                 createdAt
                 updatedAt
@@ -109,7 +190,8 @@ class NexusModsClient:
             "gameDomain": game_domain,
             "modId": mod_id,
         })
-        return result.get("data", {}).get("mod")
+        data = result.get("data") or {}
+        return data.get("mod")
 
     async def get_mod_files(self, game_domain: str, mod_id: int) -> list[dict]:
         """Get available files for a mod."""
@@ -135,7 +217,8 @@ class NexusModsClient:
             "gameDomain": game_domain,
             "modId": mod_id,
         })
-        return result.get("data", {}).get("modFiles", {}).get("nodes", [])
+        data = result.get("data") or {}
+        return (data.get("modFiles") or {}).get("nodes") or []
 
     async def get_download_link(self, game_domain: str, mod_id: int, file_id: int) -> str | None:
         """Get download link for a mod file. Requires Nexus Premium for direct links."""

@@ -10,6 +10,7 @@ from app.llm.registry import get_public_registry
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.api.deps import get_current_user
+from app.services.nexus_client import NexusModsClient
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,32 @@ async def patch_llm_keys(
     settings_row.llm_api_keys = current_keys
     await db.commit()
     return {"status": "ok", "keys_saved": len(current_keys)}
+
+
+# ── Nexus Key Validation ─────────────────────────────────────
+
+@router.post("/validate-nexus-key")
+async def validate_nexus_key(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test the user's Nexus API key against the Nexus v1 validate endpoint."""
+    settings_row = await _get_or_create_settings(current_user, db)
+    nexus_key = settings_row.nexus_api_key or ""
+    if not nexus_key:
+        return {"valid": False, "error": "No Nexus API key saved. Add one in Settings."}
+
+    try:
+        client = NexusModsClient(api_key=nexus_key)
+        user_info = await client.validate_key()
+        return {
+            "valid": True,
+            "username": user_info.get("name"),
+            "is_premium": user_info.get("is_premium", False),
+        }
+    except Exception as e:
+        logger.warning("Nexus key validation failed: %s", e)
+        return {"valid": False, "error": str(e)[:200]}
 
 
 # ── Full Settings (existing) ─────────────────────────────────

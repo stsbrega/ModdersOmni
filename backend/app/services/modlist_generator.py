@@ -25,7 +25,7 @@ from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.compatibility import CompatibilityRule
 from app.schemas.modlist import ModlistGenerateRequest
-from app.services.nexus_client import NexusModsClient
+from app.services.nexus_client import NexusModsClient, NexusAPIError
 from app.services.tier_classifier import classify_hardware_tier
 
 logger = logging.getLogger(__name__)
@@ -118,6 +118,8 @@ async def _retry_nexus(
     """Retry a Nexus API call with exponential backoff.
 
     Handles rate limits (429) and server errors (5xx) by retrying.
+    NexusAPIError (GraphQL errors) are NOT retried — they indicate
+    query/auth problems, not transient failures.
     If all retries fail, raises NexusExhaustedError so the LLM can
     try a different search or skip the mod.
     """
@@ -126,6 +128,9 @@ async def _retry_nexus(
     for attempt in range(max_retries):
         try:
             return await coro_fn()
+        except NexusAPIError:
+            # GraphQL-level errors (bad query, auth issues) — don't retry
+            raise
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
             if status == 429:
@@ -408,7 +413,7 @@ def _build_phase1_handlers(
                 "name": m["name"],
                 "author": m.get("author", "Unknown"),
                 "summary": (m.get("summary") or "")[:200],
-                "endorsements": m.get("endorsementCount", 0),
+                "endorsements": m.get("endorsements", 0),
                 "category": m.get("modCategory", {}).get("name", ""),
                 "updated": m.get("updatedAt", ""),
             })
@@ -441,7 +446,7 @@ def _build_phase1_handlers(
             "author": details.get("author", "Unknown"),
             "summary": details.get("summary", ""),
             "description": desc_text,
-            "endorsements": details.get("endorsementCount", 0),
+            "endorsements": details.get("endorsements", 0),
             "category": details.get("modCategory", {}).get("name", ""),
         })
 
@@ -530,7 +535,7 @@ def _build_phase2_handlers(
                 "name": m["name"],
                 "author": m.get("author", "Unknown"),
                 "summary": (m.get("summary") or "")[:200],
-                "endorsements": m.get("endorsementCount", 0),
+                "endorsements": m.get("endorsements", 0),
             })
         _emit(event_callback, "search_results", {
             "count": len(patches),
@@ -854,6 +859,23 @@ async def generate_modlist(
 
     # Create or restore session
     nexus = NexusModsClient(api_key=nexus_api_key)
+
+    # Validate Nexus API key before running 9 phases of empty searches
+    try:
+        nexus_user = await nexus.validate_key()
+        logger.info("Nexus API key validated: user=%s premium=%s",
+                     nexus_user.get("name"), nexus_user.get("is_premium"))
+        _emit(event_callback, "nexus_validated", {
+            "username": nexus_user.get("name", ""),
+            "is_premium": nexus_user.get("is_premium", False),
+        })
+    except Exception as e:
+        logger.error("Nexus API key validation failed: %s", e)
+        _emit(event_callback, "error", {
+            "message": f"Nexus API key is invalid or expired: {e}",
+        })
+        raise ValueError(f"Nexus API key validation failed: {e}")
+
     if resume_session:
         session = resume_session
         session.nexus = nexus  # Reconnect Nexus client

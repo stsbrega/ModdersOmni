@@ -70,6 +70,41 @@ import {
   ],
   template: `
     <div class="generation-page">
+      <!-- ── Animated Nexus Background ── -->
+      @if (gen.status() === 'running') {
+        <div class="nexus-bg" aria-hidden="true">
+          <div class="nexus-node n1"></div>
+          <div class="nexus-node n2"></div>
+          <div class="nexus-node n3"></div>
+          <div class="nexus-node n4"></div>
+          <div class="nexus-node n5"></div>
+          <div class="nexus-node n6"></div>
+          <div class="nexus-node n7"></div>
+          <div class="nexus-node n8"></div>
+          <div class="nexus-node n9"></div>
+          <div class="nexus-node n10"></div>
+          <div class="nexus-node n11"></div>
+          <div class="nexus-node n12"></div>
+          <svg class="nexus-lines" viewBox="0 0 1000 800" preserveAspectRatio="none">
+            <line x1="120" y1="150" x2="350" y2="100" class="nx-line l1"/>
+            <line x1="350" y1="100" x2="600" y2="200" class="nx-line l2"/>
+            <line x1="600" y1="200" x2="850" y2="120" class="nx-line l3"/>
+            <line x1="120" y1="150" x2="200" y2="400" class="nx-line l4"/>
+            <line x1="200" y1="400" x2="450" y2="350" class="nx-line l5"/>
+            <line x1="450" y1="350" x2="600" y2="200" class="nx-line l6"/>
+            <line x1="450" y1="350" x2="700" y2="500" class="nx-line l7"/>
+            <line x1="700" y1="500" x2="850" y2="120" class="nx-line l8"/>
+            <line x1="200" y1="400" x2="350" y2="600" class="nx-line l9"/>
+            <line x1="350" y1="600" x2="550" y2="650" class="nx-line l10"/>
+            <line x1="550" y1="650" x2="700" y2="500" class="nx-line l11"/>
+            <line x1="700" y1="500" x2="900" y2="600" class="nx-line l12"/>
+            <line x1="350" y1="100" x2="450" y2="350" class="nx-line l13"/>
+            <line x1="120" y1="150" x2="350" y2="600" class="nx-line l14"/>
+            <line x1="850" y1="120" x2="900" y2="600" class="nx-line l15"/>
+          </svg>
+        </div>
+      }
+
       <!-- ── Top: Phase Progress ── -->
       <header class="phase-bar" @fadeIn>
         <div class="phase-bar-inner">
@@ -930,6 +965,94 @@ import {
         font-size: 0.6875rem;
         color: var(--color-text-muted);
         margin: 0.15rem 0 0;
+      }
+
+      /* ── Animated Nexus Background ── */
+      .nexus-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+        opacity: 0;
+        animation: nexus-fade-in 2s ease-out 0.5s forwards;
+      }
+      @keyframes nexus-fade-in {
+        to { opacity: 1; }
+      }
+
+      .nexus-lines {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .nx-line {
+        stroke: var(--color-gold);
+        stroke-width: 0.5;
+        opacity: 0;
+        animation: line-draw 1.5s ease-out forwards, line-pulse 4s ease-in-out infinite;
+      }
+      @keyframes line-draw {
+        from { stroke-dasharray: 600; stroke-dashoffset: 600; opacity: 0; }
+        to { stroke-dasharray: 600; stroke-dashoffset: 0; opacity: 0.06; }
+      }
+      @keyframes line-pulse {
+        0%, 100% { opacity: 0.04; }
+        50% { opacity: 0.08; }
+      }
+      .l1 { animation-delay: 0.2s, 0.2s; }
+      .l2 { animation-delay: 0.35s, 0.6s; }
+      .l3 { animation-delay: 0.5s, 1.0s; }
+      .l4 { animation-delay: 0.3s, 0.4s; }
+      .l5 { animation-delay: 0.55s, 0.8s; }
+      .l6 { animation-delay: 0.7s, 1.2s; }
+      .l7 { animation-delay: 0.85s, 0.3s; }
+      .l8 { animation-delay: 0.4s, 0.9s; }
+      .l9 { animation-delay: 0.6s, 1.4s; }
+      .l10 { animation-delay: 0.75s, 0.5s; }
+      .l11 { animation-delay: 0.9s, 1.1s; }
+      .l12 { animation-delay: 0.45s, 0.7s; }
+      .l13 { animation-delay: 0.65s, 1.3s; }
+      .l14 { animation-delay: 0.8s, 0.2s; }
+      .l15 { animation-delay: 0.95s, 1.5s; }
+
+      .nexus-node {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--color-gold);
+        opacity: 0;
+        animation: node-appear 0.6s ease-out forwards, node-glow 3s ease-in-out infinite;
+        box-shadow: 0 0 8px rgba(196, 165, 90, 0.3);
+      }
+      @keyframes node-appear {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 0.25; }
+      }
+      @keyframes node-glow {
+        0%, 100% { opacity: 0.15; box-shadow: 0 0 6px rgba(196, 165, 90, 0.2); }
+        50% { opacity: 0.35; box-shadow: 0 0 14px rgba(196, 165, 90, 0.4); }
+      }
+      /* Node positions matching the SVG line endpoints */
+      .n1 { left: 12%; top: 19%; animation-delay: 0.2s, 0.5s; }
+      .n2 { left: 35%; top: 12.5%; animation-delay: 0.35s, 1.0s; }
+      .n3 { left: 60%; top: 25%; animation-delay: 0.5s, 0.3s; }
+      .n4 { left: 85%; top: 15%; animation-delay: 0.65s, 0.8s; }
+      .n5 { left: 20%; top: 50%; animation-delay: 0.3s, 1.2s; }
+      .n6 { left: 45%; top: 44%; animation-delay: 0.55s, 0.6s; }
+      .n7 { left: 70%; top: 62.5%; animation-delay: 0.7s, 1.5s; }
+      .n8 { left: 35%; top: 75%; animation-delay: 0.45s, 0.9s; }
+      .n9 { left: 55%; top: 81%; animation-delay: 0.8s, 0.4s; }
+      .n10 { left: 90%; top: 75%; animation-delay: 0.6s, 1.1s; }
+      .n11 { left: 8%; top: 85%; animation-delay: 0.4s, 0.7s; }
+      .n12 { left: 78%; top: 38%; animation-delay: 0.75s, 1.3s; }
+
+      /* Ensure content sits above the nexus */
+      .phase-bar, .gen-body {
+        position: relative;
+        z-index: 1;
       }
 
       /* ── Mobile ── */
