@@ -27,6 +27,16 @@ import {
   PatchAddedEvent,
 } from '../../shared/models/generation.model';
 
+/** Flat item for the timeline — either a phase accordion header or a regular event. */
+interface TimelineItem {
+  event: GenerationEvent;
+  phase: number;        // 0 = before any phase
+  isHeader: boolean;    // true for phase_start events (rendered as accordion header)
+  phaseComplete: boolean;
+  phaseName: string;
+  phaseModCount: number;
+}
+
 @Component({
   selector: 'app-generation',
   standalone: true,
@@ -144,81 +154,106 @@ import {
             <span class="event-count">{{ gen.events().length }} events</span>
           </div>
           <div class="timeline-scroll" #timelineEl>
-            @for (evt of gen.events(); track $index) {
-              <div
-                class="tl-item"
-                [class]="'tl-' + evt.type"
-                @fadeIn
-              >
-                <!-- Icon -->
-                <div class="tl-icon" [innerHTML]="iconFor(evt)"></div>
-
-                <!-- Content -->
-                <div class="tl-body">
-                  @switch (evt.type) {
-                    @case ('phase_start') {
-                      <div class="tl-phase-header">
-                        <span class="tl-phase-badge">Phase {{ $any(evt).number }}</span>
-                        {{ $any(evt).phase }}
-                      </div>
+            @for (item of timelineItems(); track $index) {
+              @if (item.isHeader) {
+                <!-- Phase accordion header -->
+                <div
+                  class="phase-group-header"
+                  [class.completed]="item.phaseComplete"
+                  [class.collapsed]="collapsedPhases().has(item.phase)"
+                  (click)="item.phaseComplete ? togglePhase(item.phase) : null"
+                  @fadeIn
+                >
+                  <div class="tl-icon">
+                    @if (item.phaseComplete && collapsedPhases().has(item.phase)) {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-gold)"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                     }
-                    @case ('searching') {
-                      <span class="tl-muted">Searching: <em>"{{ $any(evt).query }}"</em></span>
-                    }
-                    @case ('search_results') {
-                      <span class="tl-muted">Found {{ $any(evt).count }} mods</span>
-                    }
-                    @case ('reading_mod') {
-                      <span class="tl-dim">Reading mod #{{ $any(evt).mod_id }}…</span>
-                    }
-                    @case ('mod_added') {
-                      <div class="tl-mod-add">
-                        <strong>{{ $any(evt).name }}</strong>
-                        <span class="tl-reason">{{ $any(evt).reason }}</span>
-                      </div>
-                    }
-                    @case ('patch_added') {
-                      <div class="tl-patch-add">
-                        <strong>{{ $any(evt).name }}</strong>
-                        <span class="tl-patches-list">patches {{ $any(evt).patches_mods?.join(', ') }}</span>
-                      </div>
-                    }
-                    @case ('knowledge_flag') {
-                      <div class="tl-flag" [class.critical]="$any(evt).severity === 'critical'">
-                        <span class="tl-flag-badge">{{ $any(evt).severity }}</span>
-                        {{ $any(evt).mod_a }} ↔ {{ $any(evt).mod_b }}: {{ $any(evt).issue }}
-                      </div>
-                    }
-                    @case ('thinking') {
-                      <span class="tl-thinking">{{ $any(evt).text }}</span>
-                    }
-                    @case ('phase_complete') {
-                      <span class="tl-phase-done">Phase {{ $any(evt).number }} complete — {{ $any(evt).mod_count }} mods total</span>
-                    }
-                    @case ('retrying') {
-                      <span class="tl-retry">Retrying in {{ $any(evt).wait_seconds }}s ({{ $any(evt).reason }})</span>
-                    }
-                    @case ('provider_error') {
-                      <span class="tl-provider-err">{{ $any(evt).message }}</span>
-                    }
-                    @case ('provider_switch') {
-                      <span class="tl-switch">Switched to {{ $any(evt).to_provider }}</span>
-                    }
-                    @case ('paused') {
-                      <span class="tl-paused-msg">Paused — {{ $any(evt).reason }}</span>
-                    }
-                    @case ('resumed') {
-                      <span class="tl-resumed-msg">Resumed at Phase {{ $any(evt).phase_number }}</span>
-                    }
-                    @case ('complete') {
-                      <span class="tl-complete-msg">Generation complete!</span>
-                    }
-                    @case ('error') {
-                      <span class="tl-error-msg">{{ $any(evt).message }}</span>
-                    }
+                  </div>
+                  <div class="tl-body">
+                    <div class="phase-header-content">
+                      <span class="tl-phase-badge">Phase {{ item.phase }}</span>
+                      <span class="phase-header-name">{{ item.phaseName }}</span>
+                      @if (item.phaseComplete) {
+                        <span class="phase-complete-tag">{{ item.phaseModCount }} mods</span>
+                      }
+                    </div>
+                  </div>
+                  @if (item.phaseComplete) {
+                    <svg class="phase-chevron" [class.open]="!collapsedPhases().has(item.phase)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                   }
                 </div>
-              </div>
+              } @else if (!collapsedPhases().has(item.phase) || isTerminalEvent(item.event)) {
+                <!-- Regular timeline event (hidden when parent phase is collapsed) -->
+                <div
+                  class="tl-item"
+                  [class]="'tl-' + item.event.type"
+                  @fadeIn
+                >
+                  <div class="tl-icon" [innerHTML]="iconFor(item.event)"></div>
+                  <div class="tl-body">
+                    @switch (item.event.type) {
+                      @case ('searching') {
+                        <span class="tl-muted">Searching: <em>"{{ $any(item.event).query }}"</em></span>
+                      }
+                      @case ('search_results') {
+                        <span class="tl-muted">Found {{ $any(item.event).count }} mods</span>
+                      }
+                      @case ('reading_mod') {
+                        <span class="tl-dim">Reading mod #{{ $any(item.event).mod_id }}…</span>
+                      }
+                      @case ('mod_added') {
+                        <div class="tl-mod-add">
+                          <strong>{{ $any(item.event).name }}</strong>
+                          <span class="tl-reason">{{ $any(item.event).reason }}</span>
+                        </div>
+                      }
+                      @case ('patch_added') {
+                        <div class="tl-patch-add">
+                          <strong>{{ $any(item.event).name }}</strong>
+                          <span class="tl-patches-list">patches {{ $any(item.event).patches_mods?.join(', ') }}</span>
+                        </div>
+                      }
+                      @case ('knowledge_flag') {
+                        <div class="tl-flag" [class.critical]="$any(item.event).severity === 'critical'">
+                          <span class="tl-flag-badge">{{ $any(item.event).severity }}</span>
+                          {{ $any(item.event).mod_a }} ↔ {{ $any(item.event).mod_b }}: {{ $any(item.event).issue }}
+                        </div>
+                      }
+                      @case ('thinking') {
+                        <span class="tl-thinking">{{ $any(item.event).text }}</span>
+                      }
+                      @case ('phase_complete') {
+                        <span class="tl-phase-done">Phase {{ $any(item.event).number }} complete — {{ $any(item.event).mod_count }} mods total</span>
+                      }
+                      @case ('retrying') {
+                        <span class="tl-retry">Retrying in {{ $any(item.event).wait_seconds }}s ({{ $any(item.event).reason }})</span>
+                      }
+                      @case ('provider_error') {
+                        <span class="tl-provider-err">{{ $any(item.event).message }}</span>
+                      }
+                      @case ('provider_switch') {
+                        <span class="tl-switch">Switched to {{ $any(item.event).to_provider }}</span>
+                      }
+                      @case ('paused') {
+                        <span class="tl-paused-msg">Paused — {{ $any(item.event).reason }}</span>
+                      }
+                      @case ('resumed') {
+                        <span class="tl-resumed-msg">Resumed at Phase {{ $any(item.event).phase_number }}</span>
+                      }
+                      @case ('complete') {
+                        <span class="tl-complete-msg">Generation complete!</span>
+                      }
+                      @case ('error') {
+                        <span class="tl-error-msg">{{ $any(item.event).message }}</span>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             }
 
             @if (gen.status() === 'running') {
@@ -530,18 +565,79 @@ import {
         min-width: 0;
       }
 
-      /* Phase header */
-      .tl-phase_start {
-        margin-top: 0.5rem;
+      /* ── Phase Accordion Header ── */
+      .phase-group-header {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
         padding: 0.5rem 0;
+        margin-top: 0.5rem;
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        border-radius: 6px;
+        transition: background 0.15s, opacity 0.3s;
       }
-      .tl-phase-header {
-        font-weight: 600;
-        color: var(--color-gold);
+      .phase-group-header.completed {
+        cursor: pointer;
+        padding: 0.5rem 0.375rem;
+        margin-left: -0.375rem;
+        margin-right: -0.375rem;
+      }
+      .phase-group-header.completed:hover {
+        background: rgba(196, 165, 90, 0.06);
+      }
+      .phase-group-header.completed.collapsed {
+        opacity: 0.7;
+        margin-top: 0.25rem;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+      }
+      .phase-group-header.completed.collapsed:hover {
+        opacity: 1;
+      }
+      .phase-group-header .tl-icon {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .phase-group-header .tl-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      .phase-group-header .tl-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .phase-header-content {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        font-weight: 600;
+        color: var(--color-gold);
       }
+      .phase-header-name {
+        color: var(--color-gold);
+      }
+      .phase-complete-tag {
+        font-size: 0.6875rem;
+        font-weight: 500;
+        color: #22c55e;
+        margin-left: auto;
+      }
+      .phase-chevron {
+        flex-shrink: 0;
+        color: var(--color-text-dim);
+        transition: transform 0.25s ease;
+        transform: rotate(-90deg);
+      }
+      .phase-chevron.open {
+        transform: rotate(0deg);
+      }
+
+      /* Legacy phase badge (reused in accordion headers) */
       .tl-phase-badge {
         background: rgba(196, 165, 90, 0.15);
         color: var(--color-gold);
@@ -1111,6 +1207,66 @@ export class GenerationComponent implements OnInit, OnDestroy, AfterViewChecked 
       .map((e) => e as any)
   );
 
+  // ── Phase collapse state ──
+  collapsedPhases = signal<Set<number>>(new Set());
+  private autoCollapsedPhases = new Set<number>();
+
+  /** Flat timeline items: phase headers + events, each tagged with phase metadata. */
+  timelineItems = computed<TimelineItem[]>(() => {
+    const events = this.gen.events();
+    const items: TimelineItem[] = [];
+    let currentPhase = 0;
+    let currentPhaseName = '';
+
+    // Pre-scan: which phases are complete and their mod counts
+    const completionMap = new Map<number, number>();
+    for (const evt of events) {
+      if (evt.type === 'phase_complete') {
+        completionMap.set((evt as any).number, (evt as any).mod_count || 0);
+      }
+    }
+
+    for (const evt of events) {
+      if (evt.type === 'phase_start') {
+        const num = (evt as any).number;
+        currentPhase = num;
+        currentPhaseName = (evt as any).phase;
+        items.push({
+          event: evt,
+          phase: num,
+          isHeader: true,
+          phaseComplete: completionMap.has(num),
+          phaseName: currentPhaseName,
+          phaseModCount: completionMap.get(num) || 0,
+        });
+      } else {
+        items.push({
+          event: evt,
+          phase: currentPhase,
+          isHeader: false,
+          phaseComplete: false,
+          phaseName: currentPhaseName,
+          phaseModCount: 0,
+        });
+      }
+    }
+    return items;
+  });
+
+  togglePhase(num: number): void {
+    this.collapsedPhases.update(set => {
+      const next = new Set(set);
+      if (next.has(num)) next.delete(num);
+      else next.add(num);
+      return next;
+    });
+  }
+
+  isTerminalEvent(evt: GenerationEvent): boolean {
+    return evt.type === 'complete' || evt.type === 'error'
+      || evt.type === 'paused' || evt.type === 'resumed';
+  }
+
   isAuthError = computed(() => {
     const info = this.gen.pauseInfo();
     if (!info) return false;
@@ -1162,6 +1318,17 @@ export class GenerationComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.userAtBottom.set(atBottom);
     if (atBottom) {
       this.shouldAutoScroll = true;
+    }
+
+    // Auto-collapse completed phases after a brief delay
+    for (const item of this.timelineItems()) {
+      if (item.isHeader && item.phaseComplete && !this.autoCollapsedPhases.has(item.phase)) {
+        this.autoCollapsedPhases.add(item.phase);
+        const phaseNum = item.phase;
+        setTimeout(() => {
+          this.collapsedPhases.update(s => new Set([...s, phaseNum]));
+        }, 1200);
+      }
     }
   }
 
