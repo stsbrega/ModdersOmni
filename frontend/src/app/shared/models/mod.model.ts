@@ -6,8 +6,6 @@ export interface ModEntry {
   summary?: string;
   reason?: string;
   load_order?: number;
-  enabled: boolean;
-  download_status: string;
   is_patch?: boolean;
   patches_mods?: string[];
   compatibility_notes?: string;
@@ -29,6 +27,7 @@ export interface Modlist {
   user_knowledge_flags?: UserKnowledgeFlag[];
   used_fallback?: boolean;
   generation_error?: string;
+  created_at?: string;
 }
 
 export interface LlmProvider {
@@ -37,12 +36,4 @@ export interface LlmProvider {
   model: string;
   placeholder: string;
   hint_url: string;
-}
-
-export interface DownloadStatus {
-  mod_id: number;
-  name: string;
-  status: string;
-  progress: number;
-  error?: string;
 }

@@ -1,18 +1,14 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
-
-interface DashboardMod {
-  id: number;
-  name: string;
-  category: string;
-  enabled: boolean;
-}
+import { ApiService } from '../../core/services/api.service';
+import { Modlist } from '../../shared/models/mod.model';
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
   animations: [
     trigger('fadeUp', [
       transition(':enter', [
@@ -22,7 +18,7 @@ interface DashboardMod {
     ]),
     trigger('staggerCards', [
       transition(':enter', [
-        query('.stat-card', [
+        query('.modlist-card, .stat-card', [
           style({ opacity: 0, transform: 'translateY(12px)' }),
           stagger(80, [
             animate('350ms cubic-bezier(0.16, 1, 0.3, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
@@ -45,22 +41,6 @@ interface DashboardMod {
             </svg>
             <span>Dashboard</span>
           </a>
-          <a routerLink="/browse" class="sidebar-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
-            </svg>
-            <span>Browse Mods</span>
-          </a>
-          <a class="sidebar-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-            <span>My Modlist</span>
-          </a>
           <a routerLink="/settings" class="sidebar-item">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="3"/>
@@ -77,7 +57,7 @@ interface DashboardMod {
         <div class="welcome" @fadeUp>
           <div>
             <h1 class="welcome-title">Welcome back</h1>
-            <p class="welcome-sub">Your modding workspace at a glance</p>
+            <p class="welcome-sub">Your generated modlists</p>
           </div>
           <a routerLink="/setup" class="btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -88,134 +68,84 @@ interface DashboardMod {
           </a>
         </div>
 
-        <!-- Stats -->
-        <div class="stats-row" @staggerCards>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--gold">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-                <line x1="7" y1="7" x2="7.01" y2="7"/>
-              </svg>
-            </div>
-            <div class="stat-value">47</div>
-            <div class="stat-label">Total Mods</div>
+        @if (loading()) {
+          <div class="loading-state">
+            <span class="load-spinner"></span>
+            <p>Loading your modlists...</p>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="4" y="4" width="16" height="16" rx="2"/>
-                <path d="M9 9h6v6H9z"/>
+        } @else if (modlists().length === 0) {
+          <div class="empty-state" @fadeUp>
+            <div class="empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
               </svg>
             </div>
-            <div class="stat-value">6.2 GB</div>
-            <div class="stat-label">Est. VRAM Usage</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <h2>No modlists yet</h2>
+            <p>Generate your first AI-powered modlist by clicking New Build above.</p>
+            <a routerLink="/setup" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-            </div>
-            <div class="stat-value">96%</div>
-            <div class="stat-label">Compatibility Score</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--muted">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div class="stat-value">2h ago</div>
-            <div class="stat-label">Last Updated</div>
-          </div>
-        </div>
-
-        <!-- Content Grid -->
-        <div class="content-grid" @fadeUp>
-          <!-- Active Modlist -->
-          <section class="panel modlist-panel">
-            <div class="panel-header">
-              <h2>Your Active Modlist</h2>
-              <span class="panel-badge">Skyrim SE</span>
-            </div>
-            <div class="mod-list">
-              @for (mod of mods(); track mod.id) {
-                <div class="mod-row">
-                  <div class="mod-info">
-                    <span class="mod-name">{{ mod.name }}</span>
-                    <span class="mod-cat" [class]="'cat-' + mod.category.toLowerCase()">{{ mod.category }}</span>
-                  </div>
-                  <button
-                    class="toggle"
-                    [class.on]="mod.enabled"
-                    (click)="toggleMod(mod.id)"
-                    [attr.aria-label]="'Toggle ' + mod.name"
-                  >
-                    <span class="toggle-knob"></span>
-                  </button>
-                </div>
-              }
-            </div>
-            <a routerLink="/browse" class="panel-link">
-              View all mods
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
+              Forge New Loadout
             </a>
-          </section>
+          </div>
+        } @else {
+          <!-- Stats -->
+          <div class="stats-row" @staggerCards>
+            <div class="stat-card">
+              <div class="stat-icon stat-icon--gold">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                  <rect x="9" y="3" width="6" height="4" rx="1"/>
+                </svg>
+              </div>
+              <div class="stat-value">{{ modlists().length }}</div>
+              <div class="stat-label">Modlists Generated</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon stat-icon--blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                  <line x1="7" y1="7" x2="7.01" y2="7"/>
+                </svg>
+              </div>
+              <div class="stat-value">{{ totalMods() }}</div>
+              <div class="stat-label">Total Mods</div>
+            </div>
+          </div>
 
-          <!-- AI Recommendations -->
-          <section class="panel ai-panel">
-            <div class="panel-header">
-              <h2>AI Recommendations</h2>
-            </div>
-            <div class="ai-content">
-              <div class="ai-insight">
-                <div class="ai-insight-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          <!-- Modlist cards -->
+          <div class="modlist-grid" @staggerCards>
+            @for (ml of modlists(); track ml.id) {
+              <a [routerLink]="['/modlist', ml.id]" class="modlist-card">
+                <div class="card-top">
+                  <div class="card-meta">
+                    <span class="card-game">Game {{ ml.game_id }}</span>
+                    @if (ml.llm_provider && ml.llm_provider !== 'fallback') {
+                      <span class="card-provider">{{ ml.llm_provider }}</span>
+                    }
+                    @if (ml.used_fallback) {
+                      <span class="card-fallback">Fallback</span>
+                    }
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-arrow">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
                 </div>
-                <p>Based on your hardware tier, consider switching to <strong>2K textures</strong> for better VRAM headroom with your current ENB setup.</p>
-              </div>
-              <div class="ai-insight">
-                <div class="ai-insight-icon warn">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
+                <div class="card-stats">
+                  <span class="card-mod-count">{{ coreModCount(ml) }} mods</span>
+                  @if (patchModCount(ml) > 0) {
+                    <span class="card-patch-count">+ {{ patchModCount(ml) }} patches</span>
+                  }
                 </div>
-                <p><strong>Potential conflict:</strong> USSEP 4.2.8 and Alternate Start may need a compatibility patch for the latest game version.</p>
-              </div>
-              <div class="ai-suggestion">
-                <h4>Suggested Additions</h4>
-                <div class="suggestion-list">
-                  <div class="suggestion-item">
-                    <span>SkyUI 5.2</span>
-                    <span class="suggestion-cat">UI</span>
-                  </div>
-                  <div class="suggestion-item">
-                    <span>Immersive Citizens</span>
-                    <span class="suggestion-cat">Gameplay</span>
-                  </div>
-                  <div class="suggestion-item">
-                    <span>Static Mesh Improvement</span>
-                    <span class="suggestion-cat">Visuals</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button class="btn-secondary btn-secondary--full" (click)="regenerate()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-              Regenerate Suggestions
-            </button>
-          </section>
-        </div>
+                @if (ml.created_at) {
+                  <span class="card-date">{{ ml.created_at | date:'MMM d, y' }}</span>
+                }
+              </a>
+            }
+          </div>
+        }
       </main>
     </div>
   `,
@@ -304,10 +234,57 @@ interface DashboardMod {
     }
     .btn-primary:active { transform: translateY(0); }
 
+    /* Loading */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 5rem 2rem;
+      gap: 1rem;
+      color: var(--color-text-muted);
+    }
+    .load-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-gold);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+    .empty-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      color: var(--color-text-dim);
+    }
+    .empty-state h2 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .empty-state p {
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1.5rem;
+    }
+
     /* Stats */
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 1rem;
       margin-bottom: 2rem;
     }
@@ -317,24 +294,12 @@ interface DashboardMod {
       border-radius: var(--radius-md);
       padding: 1.25rem;
       transition: border-color 0.25s, transform 0.25s var(--ease-out), box-shadow 0.25s;
-      position: relative;
-      overflow: hidden;
-    }
-    .stat-card::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.02) 0%, transparent 70%);
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
     }
     .stat-card:hover {
       border-color: var(--color-border-hover);
       transform: translateY(-2px);
       box-shadow: var(--shadow-card);
     }
-    .stat-card:hover::after { opacity: 1; }
     .stat-icon {
       width: 36px;
       height: 36px;
@@ -346,8 +311,6 @@ interface DashboardMod {
     }
     .stat-icon--gold { background: rgba(192, 160, 96, 0.12); color: var(--color-gold); }
     .stat-icon--blue { background: rgba(123, 164, 192, 0.12); color: var(--color-blue); }
-    .stat-icon--green { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
-    .stat-icon--muted { background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted); }
     .stat-value {
       font-size: 1.375rem;
       font-weight: 700;
@@ -360,32 +323,39 @@ interface DashboardMod {
       color: var(--color-text-muted);
     }
 
-    /* Content Grid */
-    .content-grid {
+    /* Modlist grid */
+    .modlist-grid {
       display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
     }
-
-    /* Panels */
-    .panel {
+    .modlist-card {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      box-shadow: var(--shadow-card);
-    }
-    .panel-header {
+      padding: 1.25rem;
+      transition: border-color 0.2s, box-shadow 0.25s, transform 0.2s var(--ease-out);
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+    .modlist-card:hover {
+      border-color: rgba(196, 165, 90, 0.2);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(196, 165, 90, 0.06);
+      transform: translateY(-2px);
+    }
+    .card-top {
+      display: flex;
       justify-content: space-between;
-      margin-bottom: 1.25rem;
+      align-items: flex-start;
     }
-    .panel-header h2 {
-      font-size: 0.9375rem;
-      font-weight: 600;
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
     }
-    .panel-badge {
+    .card-game {
       font-size: 0.6875rem;
       font-weight: 600;
       padding: 0.1875rem 0.625rem;
@@ -393,215 +363,86 @@ interface DashboardMod {
       background: rgba(123, 164, 192, 0.12);
       color: var(--color-blue);
     }
-
-    /* Mod rows */
-    .mod-list {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 1rem;
-      max-height: 380px;
-      overflow-y: auto;
-    }
-    .mod-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.625rem 0.75rem;
-      border-radius: 6px;
-      transition: background 0.12s;
-    }
-    .mod-row:hover {
-      background: rgba(255, 255, 255, 0.025);
-    }
-    .mod-info {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-width: 0;
-    }
-    .mod-name {
-      font-size: 0.8125rem;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .mod-cat {
+    .card-provider {
       font-size: 0.6875rem;
       font-weight: 600;
-      padding: 0.125rem 0.5rem;
-      border-radius: 4px;
-      flex-shrink: 0;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .cat-gameplay { background: rgba(192, 160, 96, 0.12); color: var(--color-gold); }
-    .cat-visuals { background: rgba(123, 164, 192, 0.12); color: var(--color-blue); }
-    .cat-ui { background: rgba(168, 85, 247, 0.12); color: #a855f7; }
-    .cat-audio { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
-    .cat-textures { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
-    .cat-followers { background: rgba(234, 179, 8, 0.12); color: #eab308; }
-
-    /* Toggle */
-    .toggle {
-      width: 36px;
-      height: 20px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.1);
-      position: relative;
-      flex-shrink: 0;
-      transition: background 0.2s;
-      cursor: pointer;
-      border: none;
-      padding: 0;
-    }
-    .toggle.on {
-      background: var(--color-gold);
-      box-shadow: 0 0 8px rgba(196, 165, 90, 0.25);
-    }
-    .toggle-knob {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: white;
-      transition: transform 0.25s var(--ease-spring);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    }
-    .toggle.on .toggle-knob {
-      transform: translateX(16px);
-    }
-
-    .panel-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.375rem;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--color-gold);
-      transition: gap 0.15s;
-    }
-    .panel-link:hover { gap: 0.625rem; }
-
-    /* AI Panel */
-    .ai-content {
-      display: flex;
-      flex-direction: column;
-      gap: 0.875rem;
-      margin-bottom: 1.25rem;
-    }
-    .ai-insight {
-      display: flex;
-      gap: 0.625rem;
-      padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.02);
-      border-radius: 8px;
-      border: 1px solid var(--color-border);
-    }
-    .ai-insight-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
+      padding: 0.1875rem 0.625rem;
+      border-radius: 100px;
       background: rgba(192, 160, 96, 0.12);
       color: var(--color-gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    }
+    .card-fallback {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 0.1875rem 0.625rem;
+      border-radius: 100px;
+      background: rgba(234, 179, 8, 0.12);
+      color: var(--color-warning);
+    }
+    .card-arrow {
+      color: var(--color-text-dim);
+      transition: color 0.15s, transform 0.15s;
       flex-shrink: 0;
     }
-    .ai-insight-icon.warn {
-      background: rgba(234, 179, 8, 0.12);
-      color: #eab308;
+    .modlist-card:hover .card-arrow {
+      color: var(--color-gold);
+      transform: translateX(2px);
     }
-    .ai-insight p {
-      font-size: 0.8125rem;
-      color: var(--color-text-muted);
-      line-height: 1.5;
-    }
-    .ai-insight p strong {
-      color: var(--color-text);
-      font-weight: 500;
-    }
-    .ai-suggestion h4 {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--color-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 0.5rem;
-    }
-    .suggestion-list {
+    .card-stats {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .suggestion-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.375rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.8125rem;
-    }
-    .suggestion-item:hover { background: rgba(255, 255, 255, 0.025); }
-    .suggestion-cat {
-      font-size: 0.6875rem;
-      color: var(--color-text-dim);
-      font-weight: 500;
-    }
-
-    .btn-secondary--full {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: baseline;
       gap: 0.5rem;
-      background: transparent;
-      border: 1px solid var(--color-border);
-      color: var(--color-text-muted);
-      padding: 0.625rem;
-      border-radius: 8px;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
-    .btn-secondary--full:hover {
-      color: var(--color-text);
-      border-color: var(--color-border-hover);
-      background: rgba(255, 255, 255, 0.025);
+    .card-mod-count {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .card-patch-count {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+    }
+    .card-date {
+      font-size: 0.75rem;
+      color: var(--color-text-dim);
     }
 
     @media (max-width: 1024px) {
       .sidebar { display: none; }
-      .content-grid { grid-template-columns: 1fr; }
-      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .stats-row { grid-template-columns: 1fr; }
+      .modlist-grid { grid-template-columns: 1fr; }
     }
   `],
 })
-export class DashboardComponent {
-  mods = signal<DashboardMod[]>([
-    { id: 1, name: 'Unofficial Skyrim Special Edition Patch', category: 'Gameplay', enabled: true },
-    { id: 2, name: 'SkyUI', category: 'UI', enabled: true },
-    { id: 3, name: 'Skyrim Script Extender (SKSE64)', category: 'Gameplay', enabled: true },
-    { id: 4, name: 'ENBSeries v0.492', category: 'Visuals', enabled: true },
-    { id: 5, name: 'Realistic Water Two', category: 'Visuals', enabled: true },
-    { id: 6, name: 'Static Mesh Improvement Mod', category: 'Textures', enabled: true },
-    { id: 7, name: 'Immersive Citizens - AI Overhaul', category: 'Gameplay', enabled: false },
-    { id: 8, name: 'Ordinator - Perks of Skyrim', category: 'Gameplay', enabled: true },
-    { id: 9, name: 'Sounds of Skyrim Complete', category: 'Audio', enabled: true },
-    { id: 10, name: 'Inigo Follower Mod', category: 'Followers', enabled: true },
-  ]);
+export class DashboardComponent implements OnInit {
+  modlists = signal<Modlist[]>([]);
+  loading = signal(true);
 
-  toggleMod(id: number): void {
-    this.mods.update(mods =>
-      mods.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m)
-    );
+  totalMods = computed(() =>
+    this.modlists().reduce((sum, ml) => sum + ml.entries.length, 0)
+  );
+
+  constructor(private api: ApiService) {}
+
+  ngOnInit(): void {
+    this.api.getMyModlists().subscribe({
+      next: (modlists) => {
+        this.modlists.set(modlists);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
   }
 
-  regenerate(): void {
-    // Placeholder for AI regeneration
+  coreModCount(ml: Modlist): number {
+    return ml.entries.filter(e => !e.is_patch).length;
+  }
+
+  patchModCount(ml: Modlist): number {
+    return ml.entries.filter(e => e.is_patch).length;
   }
 }

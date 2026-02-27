@@ -32,8 +32,6 @@ class ModEntry(BaseModel):
     summary: str | None = None
     reason: str | None = None
     load_order: int | None = None
-    enabled: bool = True
-    download_status: str = "pending"
     is_patch: bool = False
     patches_mods: list[str] | None = None
     compatibility_notes: str | None = None
@@ -57,14 +55,21 @@ class ModlistResponse(BaseModel):
     generation_error: str | None = None
 
 
-class DownloadRequest(BaseModel):
-    modlist_id: uuid.UUID
-    mod_ids: list[int] | None = None  # None = download all
-
-
-class DownloadStatus(BaseModel):
-    mod_id: int
+class ExportModEntry(BaseModel):
+    nexus_mod_id: int | None = None
+    file_id: int | None = None
     name: str
-    status: str  # pending, downloading, complete, failed
-    progress: float = 0.0  # 0-100
-    error: str | None = None
+    author: str | None = None
+    load_order: int | None = None
+    is_patch: bool = False
+    patches_mods: list[str] | None = None
+
+
+class ModlistExportResponse(BaseModel):
+    id: uuid.UUID
+    game_domain: str
+    game_name: str
+    mod_count: int
+    entries: list[ExportModEntry] = []
+
+

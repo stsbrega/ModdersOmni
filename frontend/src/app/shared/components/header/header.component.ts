@@ -15,9 +15,7 @@ import { AuthService } from '../../../core/services/auth.service';
         </a>
         <nav class="nav">
           <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">Dashboard</a>
-          <a routerLink="/browse" routerLinkActive="active" class="nav-link">Browse</a>
           <a routerLink="/setup" routerLinkActive="active" class="nav-link">New Build</a>
-          <a routerLink="/downloads" routerLinkActive="active" class="nav-link">Downloads</a>
           <a routerLink="/settings" routerLinkActive="active" class="nav-link">Settings</a>
         </nav>
         <div class="header-actions">

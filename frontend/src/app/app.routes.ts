@@ -1,10 +1,8 @@
 import { Routes } from '@angular/router';
 import { LandingComponent } from './features/landing/landing.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { BrowseComponent } from './features/browse/browse.component';
 import { SetupComponent } from './features/setup/setup.component';
 import { ModlistComponent } from './features/modlist/modlist.component';
-import { DownloadsComponent } from './features/downloads/downloads.component';
 import { SettingsComponent } from './features/settings/settings.component';
 import { GenerationComponent } from './features/generation/generation.component';
 import { LoginComponent } from './features/auth/login/login.component';
@@ -27,9 +25,7 @@ export const routes: Routes = [
   { path: 'auth/reset-password', component: ResetPasswordComponent },
 
   // Public app routes
-  { path: 'browse', component: BrowseComponent },
   { path: 'setup', component: SetupComponent },
-  { path: 'downloads', component: DownloadsComponent },
 
   // Auth-required routes
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },

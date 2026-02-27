@@ -1,7 +1,8 @@
+import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,11 +14,13 @@ from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.user import User
 from app.schemas.modlist import (
-    ModEntry, ModlistGenerateRequest, ModlistResponse, UserKnowledgeFlag,
+    ExportModEntry, ModEntry, ModlistExportResponse,
+    ModlistGenerateRequest, ModlistResponse, UserKnowledgeFlag,
 )
 from app.services.modlist_generator import (
     generate_modlist as run_generation, GenerationResult, _is_version_compatible,
 )
+from app.services.nexus_client import NexusModsClient
 from app.api.deps import get_current_user, get_current_user_optional
 
 logger = logging.getLogger(__name__)
@@ -35,8 +38,6 @@ def _entry_to_schema(entry: ModlistEntry) -> ModEntry:
         summary=entry.summary,
         reason=entry.reason,
         load_order=entry.load_order,
-        enabled=entry.enabled,
-        download_status=entry.download_status,
         is_patch=entry.is_patch,
         patches_mods=entry.patches_mods,
         compatibility_notes=entry.compatibility_notes,
@@ -235,44 +236,6 @@ async def _fallback_modlist(
     return mods
 
 
-@router.get("/{modlist_id}", response_model=ModlistResponse)
-async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
-    """Get a previously generated modlist by ID."""
-    try:
-        ml_uuid = uuid.UUID(modlist_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid modlist ID")
-
-    modlist = await db.get(Modlist, ml_uuid)
-    if not modlist:
-        raise HTTPException(status_code=404, detail="Modlist not found")
-
-    # Load entries — use denormalized fields directly
-    entry_result = await db.execute(
-        select(ModlistEntry)
-        .where(ModlistEntry.modlist_id == ml_uuid)
-        .order_by(ModlistEntry.load_order)
-    )
-    entries = [_entry_to_schema(e) for e in entry_result.scalars().all()]
-
-    # Load knowledge flags
-    flag_result = await db.execute(
-        select(ModlistKnowledgeFlag)
-        .where(ModlistKnowledgeFlag.modlist_id == ml_uuid)
-    )
-    flags = [_flag_to_schema(f) for f in flag_result.scalars().all()]
-
-    return ModlistResponse(
-        id=modlist.id,
-        game_id=modlist.game_id,
-        playstyle_id=modlist.playstyle_id,
-        entries=entries,
-        llm_provider=modlist.llm_provider,
-        user_knowledge_flags=flags,
-        used_fallback=modlist.llm_provider == "fallback",
-    )
-
-
 @router.get("/mine", response_model=list[ModlistResponse])
 async def get_my_modlists(
     current_user: User = Depends(get_current_user),
@@ -313,3 +276,116 @@ async def get_my_modlists(
         )
 
     return responses
+
+
+@router.get("/{modlist_id}/export", response_model=ModlistExportResponse)
+async def export_modlist(
+    modlist_id: str,
+    nexus_api_key: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export modlist for MO2 plugin with optional file_id resolution.
+
+    If nexus_api_key is provided, resolves the primary file_id for each
+    mod via the Nexus Mods API. Otherwise, entries are returned without
+    file_ids — the plugin can resolve them locally.
+    """
+    try:
+        ml_uuid = uuid.UUID(modlist_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid modlist ID")
+
+    modlist = await db.get(Modlist, ml_uuid)
+    if not modlist:
+        raise HTTPException(status_code=404, detail="Modlist not found")
+
+    game = await db.get(Game, modlist.game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    entry_result = await db.execute(
+        select(ModlistEntry)
+        .where(ModlistEntry.modlist_id == ml_uuid)
+        .order_by(ModlistEntry.load_order)
+    )
+    db_entries = entry_result.scalars().all()
+
+    # Optionally resolve file_ids via Nexus API
+    file_id_map: dict[int, int | None] = {}
+    if nexus_api_key:
+        client = NexusModsClient(nexus_api_key)
+
+        async def resolve_file_id(nexus_mod_id: int) -> tuple[int, int | None]:
+            try:
+                files = await client.get_mod_files(game.nexus_domain, nexus_mod_id)
+                if files:
+                    primary = next((f for f in files if f.get("isPrimary")), files[0])
+                    return nexus_mod_id, primary.get("fileId")
+            except Exception:
+                logger.warning(f"Failed to resolve file_id for mod {nexus_mod_id}")
+            return nexus_mod_id, None
+
+        nexus_ids = [e.nexus_mod_id for e in db_entries if e.nexus_mod_id]
+        results = await asyncio.gather(
+            *(resolve_file_id(mid) for mid in nexus_ids)
+        )
+        file_id_map = dict(results)
+
+    entries = [
+        ExportModEntry(
+            nexus_mod_id=e.nexus_mod_id,
+            file_id=file_id_map.get(e.nexus_mod_id) if e.nexus_mod_id else None,
+            name=e.name or "Unknown",
+            author=e.author,
+            load_order=e.load_order,
+            is_patch=e.is_patch,
+            patches_mods=e.patches_mods,
+        )
+        for e in db_entries
+    ]
+
+    return ModlistExportResponse(
+        id=modlist.id,
+        game_domain=game.nexus_domain,
+        game_name=game.name,
+        mod_count=len(entries),
+        entries=entries,
+    )
+
+
+@router.get("/{modlist_id}", response_model=ModlistResponse)
+async def get_modlist(modlist_id: str, db: AsyncSession = Depends(get_db)):
+    """Get a previously generated modlist by ID."""
+    try:
+        ml_uuid = uuid.UUID(modlist_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid modlist ID")
+
+    modlist = await db.get(Modlist, ml_uuid)
+    if not modlist:
+        raise HTTPException(status_code=404, detail="Modlist not found")
+
+    # Load entries — use denormalized fields directly
+    entry_result = await db.execute(
+        select(ModlistEntry)
+        .where(ModlistEntry.modlist_id == ml_uuid)
+        .order_by(ModlistEntry.load_order)
+    )
+    entries = [_entry_to_schema(e) for e in entry_result.scalars().all()]
+
+    # Load knowledge flags
+    flag_result = await db.execute(
+        select(ModlistKnowledgeFlag)
+        .where(ModlistKnowledgeFlag.modlist_id == ml_uuid)
+    )
+    flags = [_flag_to_schema(f) for f in flag_result.scalars().all()]
+
+    return ModlistResponse(
+        id=modlist.id,
+        game_id=modlist.game_id,
+        playstyle_id=modlist.playstyle_id,
+        entries=entries,
+        llm_provider=modlist.llm_provider,
+        user_knowledge_flags=flags,
+        used_fallback=modlist.llm_provider == "fallback",
+    )

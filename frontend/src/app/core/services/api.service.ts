@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Game, Playstyle } from '../../shared/models/game.model';
 import { HardwareSpecs, SpecsParseResponse } from '../../shared/models/specs.model';
-import { Modlist, DownloadStatus, LlmProvider } from '../../shared/models/mod.model';
+import { Modlist, LlmProvider } from '../../shared/models/mod.model';
 import { GenerationStartResponse } from '../../shared/models/generation.model';
 
 @Injectable({
@@ -67,18 +67,8 @@ export class ApiService {
     return this.http.get<Modlist>(`${this.baseUrl}/modlist/${modlistId}`);
   }
 
-  // Downloads
-  startDownloads(modlistId: string, modIds?: number[]): Observable<DownloadStatus[]> {
-    return this.http.post<DownloadStatus[]>(`${this.baseUrl}/downloads/start`, {
-      modlist_id: modlistId,
-      mod_ids: modIds,
-    });
-  }
-
-  getDownloadStatus(modlistId: string): Observable<DownloadStatus[]> {
-    return this.http.get<DownloadStatus[]>(
-      `${this.baseUrl}/downloads/${modlistId}/status`
-    );
+  getMyModlists(): Observable<Modlist[]> {
+    return this.http.get<Modlist[]>(`${this.baseUrl}/modlist/mine`);
   }
 
   // LLM Providers (public)

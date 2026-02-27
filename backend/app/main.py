@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 
-from app.api import specs, games, modlist, downloads, settings, auth, stats, generation
+from app.api import specs, games, modlist, settings, auth, stats, generation
 from app.config import get_settings
 from app.database import engine, async_session, Base
 
@@ -89,7 +89,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(specs.router, prefix="/api/specs", tags=["specs"])
 app.include_router(games.router, prefix="/api/games", tags=["games"])
 app.include_router(modlist.router, prefix="/api/modlist", tags=["modlist"])
-app.include_router(downloads.router, prefix="/api/downloads", tags=["downloads"])
+
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(generation.router, prefix="/api/generation", tags=["generation"])

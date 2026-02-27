@@ -1,8 +1,7 @@
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
-import { NotificationService } from '../../core/services/notification.service';
-import { Modlist, ModEntry } from '../../shared/models/mod.model';
+import { Modlist } from '../../shared/models/mod.model';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
 @Component({
@@ -52,18 +51,30 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
               </svg>
               New Loadout
             </button>
-            <button class="btn-primary" (click)="downloadAll()">
-              Deploy Mods
+            <button class="btn-copy" (click)="copyUrl()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
               </svg>
+              {{ copied() ? 'Copied!' : 'Copy URL' }}
             </button>
+          </div>
+        </div>
+
+        <!-- MO2 integration banner -->
+        <div class="mo2-banner" @fadeUp>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          <div>
+            <strong>Install with Mod Organizer 2</strong>
+            <p>Use the ModdersOmni plugin for MO2 to download and install this modlist. Paste this page's URL into the plugin's import dialog.</p>
           </div>
         </div>
 
         <div class="mod-list" @staggerMods>
           @for (entry of modlist()!.entries; track $index) {
-            <div class="mod-card" [class.disabled]="!entry.enabled" [class.patch-card]="entry.is_patch">
+            <div class="mod-card" [class.patch-card]="entry.is_patch">
               <div class="mod-order" [class.patch-order]="entry.is_patch">
                 @if (entry.is_patch) {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -96,23 +107,15 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
                   <p class="compat-note">{{ entry.compatibility_notes }}</p>
                 }
               </div>
-              <div class="mod-actions">
-                <span class="status-badge" [class]="'status-' + entry.download_status">
-                  {{ entry.download_status }}
-                </span>
-                <div class="toggle-switch-container">
-                  <input
-                    type="checkbox"
-                    class="toggle-switch"
-                    [checked]="entry.enabled"
-                    (change)="toggleMod(entry)"
-                    [id]="'mod-' + $index"
-                  />
-                  <label [for]="'mod-' + $index" class="toggle-label">
-                    {{ entry.enabled ? 'Active' : 'Off' }}
-                  </label>
-                </div>
-              </div>
+              @if (entry.nexus_mod_id) {
+                <a class="nexus-link"
+                   [href]="'https://www.nexusmods.com/skyrimspecialedition/mods/' + entry.nexus_mod_id"
+                   target="_blank" rel="noopener">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                  </svg>
+                </a>
+              }
             </div>
           }
         </div>
@@ -198,7 +201,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
     .page-label {
       display: inline-block;
@@ -243,6 +246,24 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       transition: color 0.15s;
     }
     .btn-back:hover { color: var(--color-text); }
+    .btn-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-copy:hover {
+      color: var(--color-text);
+      border-color: var(--color-border-hover);
+    }
     .btn-primary {
       display: inline-flex;
       align-items: center;
@@ -264,6 +285,31 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     }
     .btn-primary:active { transform: translateY(0); }
 
+    /* MO2 banner */
+    .mo2-banner {
+      display: flex;
+      gap: 0.875rem;
+      padding: 1rem 1.25rem;
+      background: rgba(123, 164, 192, 0.06);
+      border: 1px solid rgba(123, 164, 192, 0.15);
+      border-radius: var(--radius-md);
+      margin-bottom: 1.5rem;
+      color: var(--color-blue, #7ba4c0);
+    }
+    .mo2-banner svg { flex-shrink: 0; margin-top: 2px; }
+    .mo2-banner strong {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--color-text);
+      margin-bottom: 0.25rem;
+    }
+    .mo2-banner p {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin: 0;
+      line-height: 1.45;
+    }
+
     /* Mod list */
     .mod-list {
       display: flex;
@@ -279,21 +325,12 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       display: flex;
       align-items: flex-start;
       gap: 1rem;
-      transition: border-color 0.2s, box-shadow 0.25s, opacity 0.2s, transform 0.2s var(--ease-out);
+      transition: border-color 0.2s, box-shadow 0.25s, transform 0.2s var(--ease-out);
     }
     .mod-card:hover {
       border-color: rgba(196, 165, 90, 0.2);
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(196, 165, 90, 0.06);
       transform: translateX(2px);
-    }
-    .mod-card.disabled {
-      opacity: 0.35;
-      border-left-color: var(--color-text-dim);
-    }
-    .mod-card.disabled:hover {
-      transform: none;
-      box-shadow: none;
-      border-color: var(--color-border);
     }
 
     /* Patch card variant */
@@ -325,11 +362,6 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       background: rgba(123, 164, 192, 0.12);
       border-color: rgba(123, 164, 192, 0.2);
       color: var(--color-blue, #7ba4c0);
-    }
-    .mod-card.disabled .mod-order {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: var(--color-border);
-      color: var(--color-text-dim);
     }
 
     .mod-info { flex: 1; min-width: 0; }
@@ -388,65 +420,22 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       border-radius: 0 4px 4px 0;
     }
 
-    /* Actions */
-    .mod-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.5rem;
+    /* Nexus link */
+    .nexus-link {
       flex-shrink: 0;
-    }
-    .status-badge {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 0.2rem 0.5rem;
-      border-radius: 100px;
-    }
-    .status-pending {
-      background: rgba(234, 179, 8, 0.12);
-      color: var(--color-warning);
-      border: 1px solid rgba(234, 179, 8, 0.2);
-    }
-    .status-downloading {
-      background: rgba(123, 164, 192, 0.12);
-      color: var(--color-blue);
-      border: 1px solid rgba(123, 164, 192, 0.2);
-    }
-    .status-complete {
-      background: rgba(34, 197, 94, 0.12);
-      color: var(--color-success);
-      border: 1px solid rgba(34, 197, 94, 0.2);
-    }
-    .status-failed {
-      background: rgba(239, 68, 68, 0.12);
-      color: var(--color-error);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .toggle-switch-container {
-      position: relative;
-      display: inline-block;
-    }
-    .toggle-switch { display: none; }
-    .toggle-label {
-      display: inline-block;
-      padding: 0.2rem 0.625rem;
-      border-radius: 100px;
-      cursor: pointer;
-      font-size: 0.6875rem;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      transition: all 0.15s;
-      background: var(--color-bg-elevated);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
       color: var(--color-text-dim);
-      border: 1px solid var(--color-border);
+      transition: color 0.15s, background 0.15s;
+      margin-top: 2px;
     }
-    .toggle-switch:checked + .toggle-label {
-      background: rgba(34, 197, 94, 0.12);
-      color: var(--color-success);
-      border-color: rgba(34, 197, 94, 0.25);
+    .nexus-link:hover {
+      color: var(--color-gold);
+      background: rgba(196, 165, 90, 0.08);
     }
 
     /* Knowledge flags section */
@@ -542,6 +531,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 export class ModlistComponent implements OnInit {
   modlist = signal<Modlist | null>(null);
   loading = signal(true);
+  copied = signal(false);
 
   coreMods = computed(() => {
     const ml = this.modlist();
@@ -557,7 +547,6 @@ export class ModlistComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private api: ApiService,
-    private notifications: NotificationService,
   ) {}
 
   ngOnInit(): void {
@@ -570,7 +559,6 @@ export class ModlistComponent implements OnInit {
         },
         error: () => {
           this.loading.set(false);
-          this.notifications.error('Failed to load modlist');
         },
       });
     } else {
@@ -578,26 +566,10 @@ export class ModlistComponent implements OnInit {
     }
   }
 
-  toggleMod(entry: ModEntry): void {
-    entry.enabled = !entry.enabled;
-  }
-
-  downloadAll(): void {
-    const ml = this.modlist();
-    if (!ml) return;
-
-    const enabledModIds = ml.entries
-      .filter((e) => e.enabled && (e.mod_id || e.nexus_mod_id))
-      .map((e) => e.mod_id || e.nexus_mod_id!);
-
-    this.api.startDownloads(ml.id, enabledModIds).subscribe({
-      next: () => {
-        this.notifications.success('Deployment initiated!');
-        this.router.navigate(['/downloads'], { queryParams: { modlist: ml.id } });
-      },
-      error: () => {
-        this.notifications.error('Failed to start deployment');
-      },
+  copyUrl(): void {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
     });
   }
 
