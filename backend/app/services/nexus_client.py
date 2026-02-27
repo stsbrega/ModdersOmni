@@ -1,6 +1,5 @@
 import httpx
 import asyncio
-from app.config import get_settings
 
 
 class NexusModsClient:
@@ -16,8 +15,7 @@ class NexusModsClient:
     }
 
     def __init__(self, api_key: str | None = None):
-        settings = get_settings()
-        self.api_key = api_key or settings.nexus_api_key
+        self.api_key = api_key or ""
         self._semaphore = asyncio.Semaphore(10)  # Max concurrent requests
 
     def _headers(self) -> dict:

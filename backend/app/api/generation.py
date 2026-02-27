@@ -65,6 +65,7 @@ async def _run_generation_task(
     generation_id: str,
     request: ModlistGenerateRequest,
     user_id: str | None = None,
+    nexus_api_key: str | None = None,
     resume_from_phase: int | None = None,
     resume_session: GenerationSession | None = None,
 ) -> None:
@@ -82,6 +83,7 @@ async def _run_generation_task(
                 db=db,
                 request=request,
                 event_callback=emitter,
+                nexus_api_key=nexus_api_key,
                 resume_from_phase=resume_from_phase,
                 resume_session=resume_session,
             )
@@ -135,6 +137,14 @@ async def start_generation(
     Returns immediately with a generation_id. Use /events for SSE streaming
     or /status for polling.
     """
+    # Validate Nexus API key — required for live mod search
+    nexus_key = (current_user.settings.nexus_api_key if current_user.settings else "") or ""
+    if not nexus_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Nexus Mods API key required. Add one in Settings.",
+        )
+
     manager = GenerationManager.get_instance()
     generation_id = manager.create_generation(user_id=str(current_user.id))
 
@@ -144,6 +154,7 @@ async def start_generation(
             generation_id=generation_id,
             request=request,
             user_id=str(current_user.id),
+            nexus_api_key=nexus_key,
         )
     )
 
@@ -296,9 +307,17 @@ async def resume_generation(
             detail="No snapshot available for resume",
         )
 
+    # Re-fetch Nexus key from user settings (may have been updated since pause)
+    nexus_key = (current_user.settings.nexus_api_key if current_user.settings else "") or ""
+    if not nexus_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Nexus Mods API key required. Add one in Settings to resume.",
+        )
+
     # Reconstruct request and session
     request = ModlistGenerateRequest(**state.request_snapshot)
-    nexus = NexusModsClient()
+    nexus = NexusModsClient(api_key=nexus_key)
     session = GenerationSession.from_snapshot(state.session_snapshot, nexus)
 
     phase_number = state.paused_at_phase or 1
@@ -313,6 +332,7 @@ async def resume_generation(
             generation_id=generation_id,
             request=request,
             user_id=str(current_user.id),
+            nexus_api_key=nexus_key,
             resume_from_phase=phase_number,
             resume_session=session,
         )

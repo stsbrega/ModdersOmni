@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.mod import Mod
 from app.models.modlist import Modlist, ModlistEntry
 from app.models.game import Game
+from app.models.user import User
 from app.schemas.modlist import DownloadRequest, DownloadStatus
 from app.services.download_manager import DownloadManager, DownloadTask
 
@@ -23,8 +25,12 @@ _download_managers: dict[str, DownloadManager] = {}
 async def start_downloads(
     request: DownloadRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     ml_id = str(request.modlist_id)
+
+    # Extract user's Nexus key for download API calls
+    nexus_key = (current_user.settings.nexus_api_key if current_user.settings else "") or ""
 
     # Load modlist with entries
     modlist = await db.get(Modlist, request.modlist_id)
@@ -47,8 +53,8 @@ async def start_downloads(
 
     result = await db.execute(query)
 
-    # Create download manager
-    manager = DownloadManager()
+    # Create download manager with user's Nexus key
+    manager = DownloadManager(nexus_api_key=nexus_key if nexus_key else None)
     statuses = []
 
     for entry, mod in result.all():

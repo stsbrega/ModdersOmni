@@ -64,6 +64,101 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
         }
       </div>
 
+      <!-- Nexus Mods API Key Section -->
+      <div class="nexus-key-section" [class.pending-highlight]="pendingNexusKey()">
+        <div class="provider-header" (click)="nexusExpanded.set(!nexusExpanded())">
+          <div class="provider-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            Nexus Mods API Key
+          </div>
+          @if (isLoggedIn()) {
+            <div class="provider-badge" [class.configured]="nexusKey()">
+              {{ nexusKey() ? 'Configured' : 'Not configured' }}
+            </div>
+          } @else {
+            <div class="provider-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Account required
+            </div>
+          }
+          <svg class="chevron" [class.expanded]="nexusExpanded()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+
+        @if (nexusExpanded()) {
+          <div class="provider-body">
+            @if (!isLoggedIn()) {
+              <div class="locked-message">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <p>Create an account to add your Nexus Mods API key and generate your modlist.</p>
+              </div>
+            } @else {
+              @if (pendingNexusKey()) {
+                <p class="pending-prompt">
+                  A Nexus Mods API key is required to search and download mods. Enter your key below.
+                </p>
+              } @else {
+                <p class="provider-desc">
+                  Required for live mod searching and downloads from Nexus Mods.
+                </p>
+              }
+
+              <div class="nexus-key-row" [class.has-key]="nexusKey()">
+                <div class="key-input-wrap">
+                  <input
+                    [type]="nexusKeyVisible() ? 'text' : 'password'"
+                    [value]="nexusKey()"
+                    (input)="onNexusKeyInput($event)"
+                    placeholder="Nexus Mods Personal API Key"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <button class="key-toggle" (click)="nexusKeyVisible.set(!nexusKeyVisible())" type="button" tabindex="-1">
+                    @if (nexusKeyVisible()) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    } @else {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    }
+                  </button>
+                </div>
+              </div>
+
+              <div class="nexus-guide">
+                <p class="guide-title">How to get your API key:</p>
+                <ol class="guide-steps">
+                  <li>Log in at <strong>nexusmods.com</strong></li>
+                  <li>Click your <strong>profile icon</strong> (top right)</li>
+                  <li>Select <strong>Site Preferences</strong></li>
+                  <li>Click <strong>API Keys</strong></li>
+                  <li>Scroll to the bottom and copy your <strong>Personal API Key</strong></li>
+                </ol>
+                <a class="nexus-link" href="https://next.nexusmods.com/settings/api-keys" target="_blank" rel="noopener">
+                  Open Nexus API Keys Page
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                  </svg>
+                </a>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <div class="ai-provider-section" [class.pending-highlight]="pendingGenerate()">
         <div class="provider-header" (click)="providerExpanded.set(!providerExpanded())">
           <div class="provider-label">
@@ -572,6 +667,62 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
       font-size: 0.6875rem;
       color: var(--color-text-dim);
     }
+
+    /* Nexus Key Section */
+    .nexus-key-section {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .nexus-key-section.pending-highlight {
+      border-color: var(--color-gold);
+    }
+    .nexus-key-row {
+      padding: 0.5rem 0;
+    }
+    .nexus-key-row.has-key .key-input-wrap {
+      border-color: rgba(192, 160, 96, 0.3);
+    }
+    .nexus-guide {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+    }
+    .guide-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      margin: 0 0 0.5rem;
+    }
+    .guide-steps {
+      margin: 0 0 0.625rem;
+      padding-left: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      line-height: 1.7;
+    }
+    .guide-steps strong {
+      color: var(--color-text);
+      font-weight: 500;
+    }
+    .nexus-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.75rem;
+      color: var(--color-gold);
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .nexus-link:hover {
+      opacity: 0.8;
+    }
   `],
 })
 export class PlaystyleSelectComponent implements OnInit {
@@ -584,6 +735,12 @@ export class PlaystyleSelectComponent implements OnInit {
   playstyles = signal<Playstyle[]>([]);
   selectedId = signal<number | null>(null);
   loading = signal(false);
+
+  // Nexus Mods API key state
+  nexusKey = signal('');
+  nexusKeyVisible = signal(false);
+  nexusExpanded = signal(true);
+  pendingNexusKey = signal(false);
 
   // AI Provider state
   providers = signal<LlmProvider[]>([]);
@@ -624,6 +781,17 @@ export class PlaystyleSelectComponent implements OnInit {
 
     // Only load keys if logged in — guests don't see the key inputs
     if (this.authService.isLoggedIn()) {
+      // Load Nexus key from user settings
+      this.api.getSettings().subscribe({
+        next: (settings: any) => {
+          if (settings?.nexus_api_key) {
+            this.nexusKey.set(settings.nexus_api_key);
+            this.nexusExpanded.set(false);
+          }
+        },
+        error: () => {},
+      });
+
       let localKeys: Record<string, string> = {};
       try {
         const saved = localStorage.getItem('llm_keys');
@@ -684,6 +852,24 @@ export class PlaystyleSelectComponent implements OnInit {
     }
   }
 
+  onNexusKeyInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.nexusKey.set(value);
+
+    // Persist to profile (fire-and-forget)
+    if (this.authService.isLoggedIn()) {
+      this.api.updateSettings({ nexus_api_key: value }).subscribe({
+        error: () => {},
+      });
+    }
+
+    // Auto-resume: if user was waiting to generate and now has Nexus key
+    if (this.pendingNexusKey() && value.length > 0) {
+      this.pendingNexusKey.set(false);
+      setTimeout(() => this.generate(), 100);
+    }
+  }
+
   isKeyVisible(provider: string): boolean {
     return this.visibleKeys().has(provider);
   }
@@ -713,6 +899,13 @@ export class PlaystyleSelectComponent implements OnInit {
       this.router.navigate(['/auth/register'], {
         queryParams: { returnUrl: '/setup' },
       });
+      return;
+    }
+
+    // Nexus key check — required for mod searching/downloading
+    if (!this.nexusKey()) {
+      this.pendingNexusKey.set(true);
+      this.nexusExpanded.set(true);
       return;
     }
 

@@ -783,6 +783,7 @@ async def generate_modlist(
     db: AsyncSession,
     request: ModlistGenerateRequest,
     event_callback: Callable[[dict], None] | None = None,
+    nexus_api_key: str | None = None,
     resume_from_phase: int | None = None,
     resume_session: GenerationSession | None = None,
 ) -> GenerationResult:
@@ -833,7 +834,7 @@ async def generate_modlist(
 
     # If no phases in DB, fall back to legacy two-phase pipeline
     if not phase_list:
-        return await _generate_legacy(db, request, event_callback)
+        return await _generate_legacy(db, request, event_callback, nexus_api_key=nexus_api_key)
 
     # Build ordered list of LLM providers to try
     providers_to_try: list[LLMProvider] = []
@@ -852,7 +853,7 @@ async def generate_modlist(
         providers_to_try.append(LLMProviderFactory.create())
 
     # Create or restore session
-    nexus = NexusModsClient()
+    nexus = NexusModsClient(api_key=nexus_api_key)
     if resume_session:
         session = resume_session
         session.nexus = nexus  # Reconnect Nexus client
@@ -1048,6 +1049,7 @@ async def _generate_legacy(
     db: AsyncSession,
     request: ModlistGenerateRequest,
     event_callback: Callable[[dict], None] | None = None,
+    nexus_api_key: str | None = None,
 ) -> GenerationResult:
     """Legacy two-phase pipeline for games without DB-defined phases."""
     game = await db.get(Game, request.game_id)
@@ -1072,7 +1074,7 @@ async def _generate_legacy(
 
     version_notes = _VERSION_NOTES.get(game_version or "", "No specific version selected.")
 
-    nexus = NexusModsClient()
+    nexus = NexusModsClient(api_key=nexus_api_key)
     session = GenerationSession(game_domain=game.nexus_domain, nexus=nexus)
 
     providers_to_try: list[LLMProvider] = []

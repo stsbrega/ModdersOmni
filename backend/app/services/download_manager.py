@@ -19,9 +19,9 @@ class DownloadTask:
 class DownloadManager:
     """Manages mod download queue and progress tracking."""
 
-    def __init__(self):
+    def __init__(self, nexus_api_key: str | None = None):
         self._tasks: dict[int, DownloadTask] = {}
-        self._nexus = NexusModsClient()
+        self._nexus = NexusModsClient(api_key=nexus_api_key)
 
     def add_task(self, task: DownloadTask) -> None:
         self._tasks[task.mod_id] = task
