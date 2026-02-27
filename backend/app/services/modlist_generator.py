@@ -25,6 +25,7 @@ from app.models.playstyle import Playstyle
 from app.models.playstyle_mod import PlaystyleMod
 from app.models.compatibility import CompatibilityRule
 from app.schemas.modlist import ModlistGenerateRequest
+from app.knowledge import get_methodology_context
 from app.services.nexus_client import NexusModsClient, NexusAPIError
 from app.services.tier_classifier import classify_hardware_tier
 
@@ -635,6 +636,8 @@ directly support this playstyle. Prioritize mods that enhance the {playstyle.nam
 PLAYSTYLE: {playstyle.name} (for context — this phase is not heavily playstyle-driven,
 but keep the overall experience in mind)."""
 
+    methodology_context = get_methodology_context(game.slug, phase.phase_number)
+
     return f"""You are an expert {game.name} mod curator working on Phase {phase.phase_number}/{total_phases}: "{phase.name}".
 
 GAME: {game.name} ({game_version or "Unknown"} edition)
@@ -643,6 +646,7 @@ GAME: {game.name} ({game_version or "Unknown"} edition)
 {hardware_context}
 
 {playstyle_context}
+{methodology_context}
 
 ── PHASE {phase.phase_number}: {phase.name} ──
 {phase.description}
@@ -680,9 +684,12 @@ def _build_patch_phase_prompt(
         for i, m in enumerate(session.modlist)
     )
 
+    methodology_context = get_methodology_context(game.slug, phase.phase_number)
+
     return f"""You are reviewing a {game.name} ({game_version or "Unknown"} edition) modlist for compatibility.
 
 This is Phase {phase.phase_number}/{total_phases}: "{phase.name}".
+{methodology_context}
 
 THE MODLIST TO REVIEW:
 {modlist_summary}
