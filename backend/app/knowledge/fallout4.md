@@ -1,122 +1,189 @@
-# Fallout 4 Modding Methodology
-<!-- source: compass_artifact methodology reference document -->
-<!-- last_synced: 2025-02 -->
-<!-- game: fallout4 -->
+<system_context>
+game: fallout4
+extends: modding_common.md
+engine: creation_engine_fallout4
+nexus_site: nexusmods.com/fallout4
+supported_versions: [OG_1.10.163, NextGen]
+version: 1.0
+last_updated: 2026-02-27
+</system_context>
 
-MODDING PRINCIPLES (Fallout 4):
-- Left pane (install order) controls asset priority; right pane (plugin order) controls record priority.
-- "Last loaded wins" — the final plugin touching a record determines game state.
-- Prefer actively maintained mods with high endorsements, used by major guide authors (ModdingLinked, STEP).
-- BA2-packed mods perform SIGNIFICANTLY better than loose files in Fallout 4. Always prefer BA2 versions. Loose files cause more stutter in FO4 than Skyrim.
-- NEVER recommend mods that break precombines (Scrap Everything, mods that move/delete vanilla placed objects) — causes catastrophic FPS loss, dropping from 60+ to single digits in dense areas like downtown Boston.
-- Previsibines Repair Pack (PRP) cell headers must ALWAYS win conflicts — its records must load last.
-- AWKCR is deprecated and crash-prone. Recommend ECO Redux (Nexus #55503) instead. Legacy AWKCR mods can use "Grilled Cheese" or "AWKCR-R" as shims.
-- Community consensus: stay on pre-next-gen version 1.10.163. The April 2024 Next-Gen Update broke F4SE and most DLL mods.
+# Fallout 4 Modding Knowledge
 
-<!-- section: essential_stack -->
-<!-- phases: 1 -->
-# Essential Mod Stack
+<version_management>
 
-Every Fallout 4 modlist MUST include these foundational mods. Target pre-next-gen version 1.10.163:
-1. F4SE — v0.6.23 for 1.10.163 (pre-NG). Script extender required by most modern mods.
-2. Address Library for F4SE (Nexus #47327) — Version-independent memory addresses.
-3. xSE PluginPreloader F4 — Preloads F4SE plugins before game init. REQUIRED by Buffout 4.
-4. Buffout 4 NG (Nexus #64880) — Crash logger + 15+ engine fixes. Replaces Achievements, Auto Gamepad Switch, Faster Workshop.
-5. High FPS Physics Fix — CRITICAL: without this, physics break above 60 FPS. Must be installed.
-6. UFO4P (Unofficial Fallout 4 Patch) — v2.2.0a; requires all DLCs for latest version.
-7. Previsibines Repair Pack (Nexus #46403) — Rebuilt precombines/previs for all vanilla cells. Massive performance improvement, especially downtown Boston.
-8. MCM (Nexus #21497) + MCM Booster (Nexus #56997) — Mod Configuration Menu.
-9. X-Cell (Nexus #84214) — Performance/threading improvements, FaceGen fixes. Separate installs for OG and NG.
-10. Weapon Debris Crash Fix (Nexus #48078) — Fixes FleX crash on Nvidia 16/20+ series GPUs.
-11. Sprint Stuttering Fix (Nexus #47760) — Fixes camera stutter on uneven surfaces.
-12. Mentats - F4SE (Nexus #91565) — Collection of engine-level fixes and patches.
+## OG vs Next-Gen Version Matrix
 
-For Standard (pre-NG): Use classic F4SE and Buffout 4. For Next-Gen: Use NG-compatible versions. NEVER mix Standard and Next-Gen versions.
+Community consensus: stay on pre-next-gen version 1.10.163. The April 2024 Next-Gen Update broke F4SE and most DLL mods.
 
-<!-- section: precombines -->
-<!-- phases: 1, 2, 5, 6, 8, 9 -->
-<!-- universal: true -->
-# Precombines and Previs — CRITICAL FO4 Knowledge
+| Component | OG (1.10.163) | Next-Gen |
+|-----------|---------------|----------|
+| F4SE | v0.6.23 | NG-specific builds (limited) |
+| Buffout 4 | Classic Buffout 4 | Buffout 4 NG (#64880) |
+| Address Library | OG version | NG version |
+| UFO4P | v2.2.0a (requires all DLCs) | Latest NG-compatible |
+| PRP | Version matched to build | Version matched to build |
 
-Precombines and previs are the MOST IMPORTANT methodological difference between Skyrim and Fallout 4 modding:
-- PRECOMBINES merge multiple static meshes into single draw calls. PREVIS is precomputed occlusion data telling the engine to skip hidden objects.
-- ANY modification to an existing object in a precombined mesh breaks ALL precombines in that cell (moving, deleting, disabling, or changing properties). Adding new objects is SAFE.
-- A single broken precombine disables previs for a 3x3 cell area (9 cells). FPS drops from 60+ to single digits.
-- ALWAYS install Previsibines Repair Pack (PRP) and ensure its cell headers win ALL conflicts — load it late.
-- NEVER recommend "Scrap Everything" type mods — they intentionally disable precombines for scrapping, causing massive performance loss.
-- Mods that only ADD new objects (not modify existing ones) are safe for precombines.
-- The BA2 archive limit (~256 non-texture BA2s) is often a bigger constraint than the plugin limit.
+</version_management>
 
-<!-- section: texture_vram -->
-<!-- phases: 5 -->
-# Texture Resolution by VRAM
+<nexus_category_mapping>
 
-Match texture resolution to user hardware to prevent VRAM exhaustion:
-- 4 GB VRAM: 1K textures broadly, 2K only for key surfaces. No ENB.
-- 6-8 GB VRAM: 2K diffuse / 1K normals. Selective 4K for large objects. Light ENB possible.
-- 12 GB+ VRAM: Full 2K with selective 4K. Full ENB presets viable.
-- 16-24 GB VRAM: Full 4K where available, ENB presets.
-KEY INSIGHT: Normal maps consume 40-50%+ of total texture VRAM. Reducing normal map resolution one step below diffuse yields the best performance-per-quality ratio.
-Vivid Fallout and FlaconOil's Retexture Project are popular comprehensive base choices.
+## Nexus Mods Categories → Phase Mapping (Fallout 4)
 
-<!-- section: fo4_methodology -->
-<!-- phases: 1, 6, 9 -->
-# FO4-Specific Methodology
+Search these Nexus Mods categories when selecting mods for each phase:
 
-- AWKCR is deprecated. Use Equipment and Crafting Overhaul (ECO) Redux (Nexus #55503) instead. Legacy mods requiring AWKCR can use "Grilled Cheese" or "AWKCR-R" as compatibility shims.
-- BA2 archives load up to 4 per plugin with MANDATORY suffixes: "- Main.ba2", "- Textures.ba2", "- Voices_en.ba2", "- Voices_XX.ba2". FO4 will NOT load archives without proper suffixes.
-- The BA2 archive limit (~256 non-texture BA2s) often constrains large modlists before the plugin limit does.
-- Object Modifications (OMODs/ModCols) are unique to FO4's weapon/armor system. ModCols can only be modified once per load order — multiple mods for the same weapon WILL conflict and require patches.
-- Loose files cause more stutter in FO4 than Skyrim. Always prefer BA2-packed mods.
+**Phase 1 (Engine Foundation):**
+nexus_categories: [Utilities, Performance]
 
-<!-- section: category_ordering -->
-<!-- phases: 9 -->
-# Fallout 4 Load Order Category Sequence
+**Phase 2 (Frameworks and Resources):**
+nexus_categories: [Utilities, Modders Resources and Tutorials, Miscellaneous]
 
-FO4 load order follows this sequence (differs from Skyrim):
+**Phase 3 (Bug Fixes):**
+nexus_categories: [Bug Fixes, Patches]
+
+**Phase 4 (Interface and HUD):**
+nexus_categories: [User Interface, Pip-Boy]
+
+**Phase 5 (Models, Textures, Visuals):**
+nexus_categories: [Models and Textures, Visuals and Graphics, Environment, Buildings]
+
+**Phase 6 (Animation, Skeleton, Physics):**
+nexus_categories: [Animation, Poses]
+
+**Phase 7 (Audio):**
+nexus_categories: [Audio - SFX, Audio - Music, Audio - Voice, Audio - Misc, Radio]
+
+**Phase 8 (Character Appearance):**
+nexus_categories: [Body, Face, and Hair, NPC, Character Presets, Tattoos]
+
+**Phase 9 (Gameplay Overhauls):**
+nexus_categories: [Gameplay, Overhauls, Immersion, Quests and Adventures, Perks, Skills and Leveling, Factions, Companions, Crafting - Equipment, Crafting - Other, Items (Food, Drinks, Chems, etc), Ammo, Collectibles, Treasure Hunts, and Puzzles, NPC - Vendors]
+
+**Phase 10 (Locations and Environment):**
+nexus_categories: [Locations - New, Locations - Vanilla, New Lands, Environment, Player Homes, Player Settlement, Crafting - Home/Settlement, Sim Settlements, Sim Settlements 2]
+
+**Phase 11 (Conflict Resolution):**
+nexus_categories: [Patches, Utilities]
+
+**Phase 12 (Lighting, Weather, Post-Processing):**
+nexus_categories: [Weather and Lighting, ENB Presets, ReShade Presets, Visuals and Graphics]
+
+**Phase 13 (Generated Output):**
+No Nexus search — output generated by tools.
+
+**Cross-phase categories (assign based on context):**
+Armour, Clothing, Power Armour → Phase 9 (new items/distribution) or Phase 5 (retextures only)
+Weapons, Weapons and Armour → Phase 9 (new weapons) or Phase 5 (retextures only)
+Creatures → Phase 9 (gameplay) or Phase 5 (retextures only)
+Vehicles → Phase 9
+
+**Excluded from standard modlists:**
+Cheats and God items, Saved Games, Transfer Settlement Blueprints, Videos and Trailers, VR (unless user specifies VR)
+
+</nexus_category_mapping>
+
+<precombines>
+
+## Precombines and Previs — CRITICAL FO4 Knowledge
+
+This is the MOST IMPORTANT methodological difference between Skyrim and Fallout 4 modding. No equivalent system exists in Skyrim.
+
+**PRECOMBINES** merge multiple static meshes into single draw calls. **PREVIS** is precomputed occlusion data telling the engine to skip hidden objects.
+
+ANY modification to an existing placed object in a precombined mesh — moving, deleting, disabling, resizing, or changing properties — breaks ALL precombines in that cell. A single broken precombine disables previs for a 3x3 cell area (9 cells). FPS drops from 60+ to single digits in dense areas like downtown Boston.
+
+Adding NEW objects (not in vanilla) does NOT break precombines. Only modifications to existing placed objects trigger breakage.
+
+**PRP** (Previsibines Repair Pack, #46403) rebuilds precombines/previs for all vanilla cells. PRP cell header records must ALWAYS win conflicts — its records must load last. Non-negotiable.
+
+PRP cannot repair breakage caused by third-party mods editing vanilla placed objects.
+
+</precombines>
+
+<phase_1_essentials>
+
+## Phase 1: Essential Engine Stack
+
+Target pre-NG version 1.10.163. Select in this dependency order:
+
+1. **F4SE** (f4se.silverlock.org) — v0.6.23 for OG. Installs to game root.
+2. **Address Library for F4SE** (#47327) — Match to game version.
+3. **xSE PluginPreloader F4** — REQUIRED by Buffout 4 (will not function without it).
+4. **Buffout 4 NG** (#64880) — Crash logger + 15+ engine fixes. Replaces standalone Achievements Mod, Auto Gamepad Switch, Faster Workshop.
+5. **High FPS Physics Fix** — CRITICAL: physics break above 60 FPS without this.
+6. **UFO4P** — v2.2.0a; requires all DLCs.
+7. **Previsibines Repair Pack** (#46403) — Rebuilt precombines/previs. See `<precombines>` for conflict rules.
+8. **MCM** (#21497) + **MCM Booster** (#56997).
+9. **X-Cell** (#84214) — Performance/threading improvements. Separate OG and NG installs.
+10. **Weapon Debris Crash Fix** (#48078) — Fixes FleX crash on Nvidia 16/20/30/40 series.
+11. **Sprint Stuttering Fix** (#47760) — Camera stutter on uneven terrain.
+12. **Mentats - F4SE** (#91565) — Engine-level fix collection.
+
+</phase_1_essentials>
+
+<fo4_specific_methodology>
+
+## FO4-Specific Technical Details
+
+**AWKCR is deprecated.** Use **ECO Redux** (#55503). Legacy AWKCR-dependent mods can use "Grilled Cheese" or "AWKCR-R" as lightweight shims.
+
+**BA2 archive rules:** FO4 loads up to 4 BA2s per plugin with MANDATORY suffixes:
+- `PluginName - Main.ba2`
+- `PluginName - Textures.ba2`
+- `PluginName - Voices_en.ba2`
+- `PluginName - Voices_XX.ba2`
+FO4 will NOT load archives without these exact naming conventions (including spaces around hyphen).
+
+**BA2 archive limit:** ~256 non-texture BA2s. Often constrains large modlists before the 254 plugin limit. Monitor count when building large lists.
+
+**Loose files vs BA2:** Loose files cause significantly more stutter in FO4 than Skyrim. Always prefer BA2-packed versions.
+
+**OMOD/ModCol system:** Object Modifications use fixed slots per weapon/armor. Multiple mods editing the same weapon's OMODs will conflict — only last-loaded changes persist. No automatic merging. Requires manual xEdit patches to combine.
+
+</fo4_specific_methodology>
+
+<load_order_categories>
+
+## Fallout 4 Load Order Category Sequence
+
 1. Masters and base game ESMs
 2. Unofficial Patches (UFO4P)
-3. Frameworks and resource libraries
-4. Bug Fixes and engine patches
-5. UI and HUD (DEF_UI/FallUI, Full Dialogue Interface)
-6. Gameplay Overhauls (combat, loot, economy)
-7. New Content (quests, factions, companions)
-8. Weapons and Armor (new gear, retextures)
+3. Frameworks and resource libraries (ECO Redux, keyword frameworks)
+4. Bug fixes and engine patches
+5. UI and HUD (DEF_UI/FallUI, Full Dialogue Interface, HUDFramework)
+6. Gameplay overhauls (combat, loot, economy)
+7. New content (quests, factions, companions, worldspaces)
+8. Weapons and armor (new gear, retextures, OMOD mods)
 9. NPC and AI modifications
-10. Visuals and Textures (comprehensive overhauls)
-11. Settlement mods (building, power, scrapping)
-12. Conflict Resolution Patches
-13. Previs patches — MUST load last to win cell headers (PRP)
+10. Visuals and textures
+11. Settlement mods (ONLY mods adding new objects — never precombine-breaking scrap mods)
+12. Conflict resolution patches (Bashed Patch, Synthesis, manual CR)
+13. **Previs patches — MUST load last (see `<precombines>` rules)**
 
-Specific load order rules:
-- Patches load AFTER the mods they patch.
-- PRP cell headers must ALWAYS be the final winner.
-- UFO4P patches are especially common and important.
+</load_order_categories>
 
-<!-- section: conflict_resolution -->
-<!-- phases: 9 -->
-# Fallout 4 Conflict Resolution
+<conflict_patterns_fo4>
 
-When two plugins edit different fields of the same record, no load order change preserves both — only a compatibility patch works.
+## FO4-Specific Conflict Patterns
 
-FO4-specific conflict patterns to check:
-1. LEVELED LISTS — Most frequent. Without merging, only last-loaded mod's items appear. Solved by Bashed Patch or Synthesis.
-2. CELL HEADER CONFLICTS — Two mods alter same cell header. PRP MUST win all cell header conflicts for precombine integrity.
-3. OMOD/MODCOL CONFLICTS — Unique to FO4. Multiple mods modifying the same weapon's OMODs will conflict. Only one mod per weapon modification slot — requires patches.
-4. BA2 ARCHIVE LIMIT — ~256 non-texture BA2 archives. Exceeding this is often the real constraint before plugin limits.
-5. PRECOMBINE CONFLICTS — Any mod touching precombined objects breaks optimization. PRP repairs vanilla cells but cannot fix third-party breakage.
+**PRECOMBINE/PRP CONFLICTS** — See `<precombines>` for full rules. Any mod loading cell headers after PRP invalidates precombine/previs data.
 
-ITMs (Identical to Master) silently revert changes from earlier mods. Clean with xEdit QuickAutoClean.
+**OMOD/MODCOL CONFLICTS** — Multiple mods modifying same weapon's Object Modifications conflict on fixed slots. No merge possible — requires manual xEdit patching.
 
-<!-- section: mods_to_avoid -->
-<!-- phases: 1, 2, 3, 4, 5, 6, 7, 8, 9 -->
-<!-- universal: true -->
-# Mods and Practices to Avoid
+**BA2 ARCHIVE LIMIT** — ~256 non-texture BA2s. Exceeding causes silent asset loading failures.
 
-- NEVER recommend "Scrap Everything" type mods — breaks precombines catastrophically.
-- NEVER recommend AWKCR — deprecated, bloated, crash-prone. Use ECO Redux instead.
-- NEVER recommend mods that move or delete vanilla placed objects unless they regenerate precombines.
-- Do NOT mix Standard (pre-NG) and Next-Gen versions of framework mods — causes immediate crashes.
-- Do NOT recommend increasing Papyrus INI values — larger values queue more problems.
-- Avoid mods from Sinitar Gaming's guides — widely considered harmful by the experienced community.
-- Do NOT update mods mid-playthrough without reading changelogs — script changes corrupt saves.
+</conflict_patterns_fo4>
+
+<fo4_prohibitions>
+
+## FO4-Specific Prohibitions
+
+NEVER select "Scrap Everything" or similar precombine-disabling mods — see `<precombines>`.
+
+NEVER select AWKCR — deprecated, bloated, crash-prone. Use ECO Redux.
+
+NEVER select mods that modify vanilla placed objects unless they explicitly regenerate precombines.
+
+Do NOT mix OG and Next-Gen versions of framework mods.
+
+</fo4_prohibitions>

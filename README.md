@@ -4,14 +4,41 @@ AI-powered video game modding assistant that analyzes your PC hardware and build
 
 ## Features
 
-- **Hardware-Aware Modlists** — Paste your PC specs and ModdersOmni classifies your hardware tier (GPU generation, VRAM, CPU, RAM) to recommend mods your system can handle
+- **Hardware-Aware Modlists** — ModdersOmni reads your saved hardware profile (GPU generation, VRAM, CPU, RAM, SSD space) to recommend mods your system can handle
 - **Game Version Intelligence** — Distinguishes between Skyrim SE/AE and Fallout 4 Standard/Next-Gen to filter mods by compatibility
-- **Playstyle Presets** — Choose from popular playstyles (Survival, Combat Overhaul, Visual Enhancement, etc.) and get a curated modlist
-- **AI-Powered Curation** — Uses open-source LLMs (local via Ollama or free cloud APIs) to generate compatible, conflict-free modlists
+- **Freeform Playstyle Prompts** — Describe what you want in plain language (e.g., "dark fantasy with survival mechanics and Legacy of the Dragonborn") and the AI interprets your intent into mod selection logic. Specific mod requests are treated as priority inclusions. Prompts are capped at 200 words (~270 tokens) to maintain efficient context usage
+- **Past Playstyle Analysis** — The AI analyzes your previous modlist builds for the same game to inform suggestions for new builds, helping refine recommendations over time
+- **AI-Powered Curation** — Uses open-source LLMs (local via Ollama or free cloud APIs) to generate compatible, conflict-free modlists through a 13-phase build methodology with post-build verification auditing
 - **Nexus Mods Integration** — Search, browse, and download mods directly via the Nexus Mods v2 GraphQL API
 - **User Accounts & OAuth** — Register with email or sign in with Google/Discord, save hardware profiles, and access your modlist history
 - **Load Order Management** — Automatic load order sorting based on compatibility rules
 - **One-Click Downloads** — Download your entire modlist with real-time progress tracking via WebSockets
+
+## Modlist Build Workflow
+
+1. **Select Game** — Choose Skyrim (SE or AE) or Fallout 4 (Standard or Next-Gen). This determines which game-specific knowledge base is injected into the LLM context.
+
+2. **Hardware Verification** — The system loads the user's saved hardware profile (GPU, VRAM, CPU, RAM, available SSD space). These specs drive VRAM budget checks, texture resolution recommendations, and SSD space validation throughout the build.
+
+3. **Describe Your Playstyle** — The user writes a freeform prompt describing what they want from their modlist (capped at 200 words). The AI interprets natural language into modlist building logic — mapping phrases like "good graphics" to the appropriate Nexus categories and phases. Users can also name specific mods they want included, which are treated as priority selections. The AI presents a suggested approach that can be iteratively refined until the user is satisfied.
+
+4. **Past Playstyle Context** — For returning users, the AI analyzes previous modlist builds for the selected game to inform suggestions. This context is game-specific and injected alongside the knowledge base with a word limit to control token usage.
+
+5. **Generate Modlist** — Once the user confirms their playstyle, the AI builds the modlist through 13 sequential phases (defined in the knowledge base), checking Nexus mod requirements at each selection, then runs a post-build verification audit covering dependency completeness, version consistency, mutual exclusivity, plugin count, VRAM budget, SSD space, and game-specific safety checks.
+
+## Knowledge Base Architecture
+
+The modding knowledge base is split into three files optimized for LLM context injection:
+
+| File | Purpose | Injected When |
+|------|---------|---------------|
+| `modding_common.md` | Universal engine principles, 13 build phases, conflict patterns, plugin limits, VRAM tables, mod selection rules, post-build audit | Always |
+| `skyrim.md` | SE/AE version matrix, Nexus category mappings, Phase 1 essentials, animation frameworks, weather/lighting rules, load order sequence, Skyrim-specific conflicts and prohibitions | Skyrim builds |
+| `fallout4.md` | OG/NG version matrix, Nexus category mappings, Phase 1 essentials, precombine/previs system, BA2 rules, AWKCR deprecation, FO4-specific conflicts and prohibitions | Fallout 4 builds |
+
+**Injection strategy:** For Skyrim builds, inject `modding_common.md` + `skyrim.md`. For Fallout 4 builds, inject `modding_common.md` + `fallout4.md`. This eliminates cross-game duplication while keeping per-game token cost under ~4,700 tokens.
+
+The files use a hybrid Markdown + XML tag format: XML tags (`<section_name>`) provide semantic boundaries for LLM section recognition, while Markdown handles content within sections for maximum token efficiency. Each concept lives in exactly one location — common defines universal rules, game files contain only game-specific details that differ from or extend the common rules.
 
 ## Supported Games
 
